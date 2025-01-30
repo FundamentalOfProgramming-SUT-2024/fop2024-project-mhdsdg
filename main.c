@@ -13,6 +13,8 @@
 #include <string.h>
 #include <dirent.h>
 int row , col;
+int difficulty = 0;
+int hero_color = 14;
 //functions
 //declaring just in case
 char address[100];
@@ -350,15 +352,11 @@ int check_user(int row ,int col){
         if(ch >= 32 && ch <= 126){
             password[pass_length++] = ch ;
             password[pass_length] = '\0' ;
-            // mvprintw(row/2 , col/3 + 30, password);
-            //move(row/2 , col/3 + 30 + pass_length);
         }
         if(ch == KEY_BACKSPACE){
             if(pass_length > 0){
                 pass_length-- ;
                 password[pass_length] = '\0';
-                // mvaddch(row/2 , col/3 + 30 + pass_length , ' ');
-                //move(row/2 , col/3 +30 + pass_length);
             }
         }
         }
@@ -410,7 +408,7 @@ void show_login_message(int m ,int row ,int col){
     return;
 }
 //menus
- 
+int setting_menu();
 typedef struct {  
     char filename[100];  
     int value;  //score
@@ -481,22 +479,14 @@ int score_menu(){
     int file_count = 0;
     FileEntry* users = malloc(200 * sizeof(FileEntry)); 
     sortFilesBySecondLineValue("./users" , &file_count , &users);
-    mvwprintw(win , 2 , 2 , "Name: ");
-    mvwprintw(win , 2 , 22 , "All-time score: ");
-    mvwprintw(win , 2 , 42 , "Total gold: ");
-    mvwprintw(win , 2 , 62 , "Games played: ");
-    mvwprintw(win , 2 , 82 , "EXP: ");
+    mvwprintw(win , 2 , 2 , "%10s%20s%20s%20s%20s" , "Name: " , "All-time score: " , "Total gold: " , "Games played: " , "EXP: ");
     for(int i = 0 ; i < 3; i++){
         char mamad[100];
         int size = strlen(users[i].filename);
         strncpy(mamad , users[i].filename , size - 4);
         mamad[size-4] = '\0';
         if(strcmp(mamad , user) == 0)wattron(win , A_REVERSE);
-        mvwprintw(win , 4+8*i , 2 , mamad);
-        mvwprintw(win , 4+8*i, 22 ,"%d" ,users[i].value);
-        mvwprintw(win , 4+8*i , 42 ,"%d" ,users[i].gold_count);
-        mvwprintw(win , 4+8*i , 62 ,"%d" ,users[i].game_count);
-        mvwprintw(win , 4+8*i , 82 ,"%d" ,users[i].exp);
+        mvwprintw(win , 4+8*i , 2 , "%10s%20d%20d%20d%20d" , mamad , users[i].value ,users[i].gold_count,users[i].game_count,users[i].exp);
         if(strcmp(mamad , user) == 0)wattroff(win , A_REVERSE);
         chtype color;
         if(i == 0){color = COLOR_PAIR(6);
@@ -537,9 +527,87 @@ int score_menu(){
     wrefresh(win);
     wgetch(win);
     wclear(win);
+    box(win , 0 , 0);
+    mvwprintw(win , 2 , 2 , "%10s%20s%20s%20s%20s" , "Name: " , "All-time score: " , "Total gold: " , "Games played: " , "EXP: ");
+    for(int i = 3 ; i < 13 && i < file_count ; i++){
+        char mamad[100];
+        int size = strlen(users[i].filename);
+        strncpy(mamad , users[i].filename , size - 4);
+        mamad[size-4] = '\0';
+        if(strcmp(mamad , user) == 0)wattron(win , A_REVERSE);
+        mvwprintw(win , 4+3*(i-3) , 2 , "%10s%20d%20d%20d%20d" , mamad , users[i].value ,users[i].gold_count,users[i].game_count,users[i].exp);
+        if(strcmp(mamad , user) == 0)wattroff(win , A_REVERSE);
+    }
+    wrefresh(win);
+    wgetch(win);
+    wclear(win);
     wrefresh(win);
     delwin(win);
     return Main_menu();
+}
+
+int choose_color(){
+    WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
+    box(win , 0 , 0);
+    const char * options[5] = {"White" , "Gold" , "Green" ,"Blue" , "Red"};
+    int t = multiple_choice(options , 5 , 0 , win);
+    switch(t){
+        case 0 :
+        hero_color = 14;
+        break;
+        case 1 :
+        hero_color = 6;
+        break;
+        case 2 :
+        hero_color = 2;
+        break;
+        case 3 :
+        hero_color = 5;
+        break;
+        case 4 :
+        hero_color = 1;
+        break;
+    }
+    wclear(win);
+    delwin(win);
+    return setting_menu();
+}
+
+int difficulty_menu(){
+    WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
+    box(win , 0 , 0);
+    const char * options[3] = {"Easy" , "Normal" , "Hard"};
+    int t = multiple_choice(options , 3 , 0 , win);
+    wclear(win);
+    wrefresh(win);
+    delwin(win);
+    switch (t)
+    {
+    case 0:
+        difficulty = 0;
+        break;
+    case 1:
+        difficulty = 1;
+        break;
+    case 2:
+        difficulty = 2;
+        break;
+    default:
+        break;
+    }
+    return setting_menu();
+}
+
+int setting_menu(){
+    WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
+    box(win , 0 , 0);
+    const char * options[5] = {"Hero's skin" , "Difficulty" , "music" , "Back"};
+    int t = multiple_choice(options , 4 , 0 , win);
+    wclear(win);
+    delwin(win);
+    if(t == 0)return choose_color();
+    else if(t == 3)return Main_menu();
+    else if(t == 1)return difficulty_menu();
 }
 
 int Main_menu(){
@@ -551,6 +619,7 @@ int Main_menu(){
     if(t == 0){return t;}
     if(t == 1){return t;}
     if(t == 2){return score_menu();}
+    if(t == 3){return setting_menu();}
 }
 
 //map and game
@@ -636,7 +705,7 @@ void initialize_hero(){
     hero.hunger = 20;
     hero.gold_count = 0;
     hero.bgold_count = 0;
-    hero.current_weapon =0;
+    hero.current_weapon = -1;
     for(int i = 0 ; i < 4; i++){
         hero.food_count[i] =0;
     }
@@ -668,9 +737,9 @@ void show_msg(const char * message , int n);
 int interrupted = 0;  
 int level = 1;
 int hunger0 = 0;
-int difficulty;
-struct point ** pathways;
-int path_index[10] = {0};
+int damage_boost = 1;
+int regen_boost = 1;
+int revealed = 0;
 WINDOW * gamewin;
 WINDOW* stats ;
 WINDOW* msg;
@@ -701,6 +770,91 @@ void you_think_you_win(){
     mvwprintw(win , row/2 - -1 ,col/2 - 40 ,"If you have an answer you are now furious that a number higher than that exists . you want it.");
     mvwprintw(win , row/2 - -2,col/2 - 40 ,"anyway here is what you gathered: %d pts",hero.bgold_count*200 + hero.gold_count*50);
     wrefresh(win);
+}
+
+typedef struct {  
+    char ch;  
+    int attr; 
+    int pathway;
+    int visited;
+} Cell;    
+
+
+Cell map[1000][1000];  
+
+void scan_map(WINDOW *win) {  
+    for (int y = 0; y < row-4; y++) {  
+        for (int x = 0; x < col*3/4-5; x++) {   
+            chtype ch = mvwinch(win, 2+y, col/4-1+x);
+            map[y][x].ch = ch & A_CHARTEXT; 
+            map[y][x].attr = ch & A_ATTRIBUTES; 
+            if(ch & A_CHARTEXT == '#'){
+                map[y][x].pathway = 1;
+                map[y][x].visited = 0;
+            }
+            else{
+                map[y][x].pathway = 0;
+            }
+        }  
+    }  
+}
+
+void print_map_black() {  
+    for (int y = 0; y < row - 4; y++) {  
+        for (int x = 0; x < col * 3 / 4 - 5; x++) {  
+            wattr_on(gamewin, COLOR_PAIR(13), NULL); 
+            mvwaddch(gamewin,2+y,col/4-1+ x, map[y][x].ch);             
+            wattr_off(gamewin, COLOR_PAIR(13), NULL);  
+        }  
+    }  
+    wrefresh(gamewin);  
+}
+
+void update_map(int y , int x , chtype c){
+    map[y - 2][x - col/4 + 1].ch = c & A_CHARTEXT;
+    map[y - 2][x - col/4 + 1].attr = c & A_ATTRIBUTES;
+}
+
+void reveal_area( int start_y, int start_x, int height, int width) {  
+    start_y -= 2;
+    start_x -= col/4 -1;
+    for (int y = start_y; y < start_y + height; y++) {  
+        for (int x = start_x; x < start_x + width; x++) {  
+            if (y >= 0 && y < row - 4 && x >= 0 && x < col * 3 / 4 - 5) {  
+                  
+                wattron(gamewin, map[y][x].attr);  
+                mvwaddch(gamewin, 2+y, col/4-1+x, map[y][x].ch);  
+                wattroff(gamewin, map[y][x].attr);
+            }  
+        }  
+    }  
+    wrefresh(gamewin);  
+}
+
+void print_back() {  
+    for (int y = 0; y < row - 4; y++) {  
+        for (int x = 0; x < col * 3 / 4 - 5; x++) {  
+            wattron(gamewin, map[y][x].attr); 
+            mvwaddch(gamewin,2+y,col/4-1+ x, map[y][x].ch);             
+            wattroff(gamewin, map[y][x].attr);  
+        }  
+    }  
+    wrefresh(gamewin);  
+}
+
+void reveal_marked(room* rooms , int room_count){
+    for(int i = 0 ; i < room_count ; i++){
+        if(rooms[i].marked == 1){
+        reveal_area(rooms[i].y , rooms[i].x , rooms[i].height , rooms[i].width);}
+    }
+    for(int i = 0 ; i < row - 4 ; i++){
+        for(int j = 0 ; j < col*3/4-5 ; j++){
+            if(map[i][j].pathway == 1 && map[i][j].visited == 1){
+                mvwaddch(gamewin , i+2 , j+col/4-1 ,'#');
+            }
+        }
+    }
+    wrefresh(gamewin);
 }
 
 void color_the_room(room room , chtype color){
@@ -944,7 +1098,7 @@ void place_snake(room* rooms , int room_count){
     wattroff(gamewin , A_BOLD);
     rooms[b].filled[p.y - rooms[b].y][p.x - rooms[b].x] = 1;
     rooms[b].monsters[rooms[b].monster_count].type = 'S';
-    rooms[b].monsters[rooms[b].monster_count].damage = 7;
+    rooms[b].monsters[rooms[b].monster_count].damage = 10;
     rooms[b].monsters[rooms[b].monster_count].health = 20;
     rooms[b].monsters[rooms[b].monster_count].loc.y = p.y ;
     rooms[b].monsters[rooms[b].monster_count].loc.x = p.x ;
@@ -952,6 +1106,7 @@ void place_snake(room* rooms , int room_count){
     strcpy (rooms[b].monsters[rooms[b].monster_count].name , "Snake");
     rooms[b].monsters[rooms[b].monster_count].turn = 0;
     rooms[b].monster_count++;
+    
 }
 void place_undead(room* rooms , int room_count){
     int b = rand()%room_count ;
@@ -1013,8 +1168,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                 char c = mvwinch(win, room1_center_y, x) ;
                 if(c == ' ') {
                 mvwaddch(win, room1_center_y, x, '#');
-                pathways[level-1][path_index[level-1]++] . y = room1_center_y ; 
-                pathways[level-1][path_index[level-1]++] . x = x;}
+                }
                 if((c == '-' || c == '|')){
                     int t = mvwinch(win , room1_center_y , x-1);
                     if(t!='.' && (room1_center_y == rooms[i+1].y ||  room1_center_y == rooms[i+1].y + rooms[i+1].height - 1)){
@@ -1024,8 +1178,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                             mvwaddch(win, room1_center_y, x-1, '#');
                             mvwaddch(win, room1_center_y-1,x-1 , '#');
                             mvwaddch(win, room1_center_y-2,x,' ');
-                            pathways[level-1][path_index[level-1]++] . y = room1_center_y;
-                            pathways[level-1][path_index[level-1]++] . x = x-1;
+                            
                         }
                         else{
                             room1_center_y-=2;
@@ -1033,8 +1186,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                             mvwaddch(win, room1_center_y+1,x-1 , '#');
                             mvwaddch(win, room1_center_y+2,x,' ');
                             mvwaddch(win, room1_center_y, x-1, '#');
-                            pathways[level-1][path_index[level-1]++] . y = room1_center_y;
-                            pathways[level-1][path_index[level-1]++] . x = x-1;
+                            
                         }
                     }
                 if(mvwinch(win , room1_center_y , x) == '-' || mvwinch(win , room1_center_y , x) == '|'){
@@ -1045,8 +1197,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                 which_room(door , rooms , room_count);
                 }
                 else{mvwaddch(win , room1_center_y , x , '#');
-                     pathways[level-1][path_index[level-1]++] . y = room1_center_y;
-                     pathways[level-1][path_index[level-1]++] . x = x;}
+                     }
                 }
             }  
         //right to left
@@ -1080,8 +1231,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                 char c = mvwinch(win, room1_center_y, x) ;
                 if(c == ' ') {
                 mvwaddch(win, room1_center_y, x, '#');
-                pathways[level-1][path_index[level-1]++] . y = room1_center_y ; 
-                pathways[level-1][path_index[level-1]++] . x = x;}
+                }
                 if((c == '-' || c == '|')){
                     int t = mvwinch(win , room1_center_y , x+1);
                     if(t!='.' && (room1_center_y == rooms[i+1].y ||  room1_center_y == rooms[i+1].y + rooms[i+1].height - 1)){
@@ -1090,16 +1240,14 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                             mvwaddch(win, room1_center_y, x+1, '#');
                             mvwaddch(win, room1_center_y-1,x+1 , '#');
                             mvwaddch(win, room1_center_y-2,x,' ');
-                            pathways[level-1][path_index[level-1]++] . y = room1_center_y;
-                            pathways[level-1][path_index[level-1]++] . x = x-1;
+                            
                         }
                         else{
                             room1_center_y-=2;
                             mvwaddch(win, room1_center_y, x+1, '#');
                             mvwaddch(win, room1_center_y+1,x+1 , '#');
                             mvwaddch(win, room1_center_y+2,x,' ');
-                            pathways[level-1][path_index[level-1]++] . y = room1_center_y;
-                            pathways[level-1][path_index[level-1]++] . x = x-1;
+                        
                         }
                     }
                 if(mvwinch(win , room1_center_y , x) == '-' || mvwinch(win , room1_center_y , x) == '|'){
@@ -1110,8 +1258,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                 which_room(door , rooms , room_count);
                 }
                 else{mvwaddch(win , room1_center_y , x , '#');
-                     pathways[level-1][path_index[level-1]++] . y = room1_center_y;
-                     pathways[level-1][path_index[level-1]++] . x = x;}
+                     }
                 }
             }
         }  
@@ -1121,8 +1268,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                 char c = mvwinch(win, y, room2_center_x) ;
                 if(c == ' ') {
                 mvwaddch(win, y, room2_center_x, '#');
-                pathways[level-1][path_index[level-1]++] . y = y;
-                pathways[level-1][path_index[level-1]++] . x = room2_center_x;  }
+                  }
                 if((c== '-' || c== '|')){
                 mvwaddch(win, y, room2_center_x, '+');  
                 struct point door ;
@@ -1136,8 +1282,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
                 char c = mvwinch(win, y, room2_center_x) ;
                 if(c == ' ') {
                 mvwaddch(win, y, room2_center_x, '#'); 
-                pathways[level-1][path_index[level-1]++] . y = y;
-                pathways[level-1][path_index[level-1]++] . x = room2_center_x;} 
+                } 
                 if((c== '-' || c== '|')){
                 mvwaddch(win, y, room2_center_x, '+');
                 struct point door ;
@@ -1206,7 +1351,7 @@ void doors(room* rooms,int room_count , WINDOW * win){  // exiting doors have 33
         for(int j = 0 ; j < rooms[i].door_count ; j++){
             int x = rooms[i].doors[j].x ;
             int y = rooms[i].doors[j].y ;
-            if(rand()%10 > 7){
+            if(rand()%10 > 7 && j>0){
                 rooms[i].door_types[j][0] = 'h';
                 if(y == rooms[i].y || y == rooms[i].y -1 + rooms[i].height){
                     mvwaddch(win , y , x , '-');
@@ -1386,12 +1531,20 @@ void place_hero(WINDOW* win,room room1 ,int y , int x){
         struct point rand = pick_a_random_point(room1);
         hero.loc.y = rand.y;
         hero.loc.x = rand.x;
-        mvwprintw(win , rand.y , rand.x , "H");
+        wattron(gamewin , COLOR_PAIR(hero_color));
+        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+        room1.filled[hero.loc.y - room1.y][hero.loc.x - room1.x] = 1;
     }
     else {
         hero.loc.y = y;
         hero.loc.x = x;
-        mvwprintw(win , y , x , "H");
+        wattron(gamewin , COLOR_PAIR(hero_color));
+        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+        room1.filled[hero.loc.y - room1.y][hero.loc.x - room1.x] = 1;
     }
 }
 
@@ -1422,34 +1575,36 @@ int which_monster(room room , struct point p){
             return i;
         }
     }
+    return -1;
 }
 
-int manage_monsters(room room){
-    for(int i = -3 ; i <= 3 ; i++){
-        for(int j = -3 ; j <= 3 ; j++){
+int manage_monsters(room* room){
+    for(int i = -4 ; i <= 4 ; i++){
+        for(int j = -4 ; j <= 4 ; j++){
             if(i <= 1 && i >= -1 && j >= -1 && j <= 1){
                 int ch = mvwinch(gamewin , hero.loc.y + j , hero.loc.x + i);
                 int c = ch & A_CHARTEXT ;
                 struct point p ; p.y = hero.loc.y + j ; p.x = hero.loc.x + i;
-                if(c == 'D' || c == 'F' || c == 'U' || c == 'G' || c == 'S'){
-                    int t = which_monster(room , p);
-                    if(room.monsters[t].turn)continue;
-                    room.monsters[t].move_count = 0;
+                if(c == 'D' || c == 'F' || c == 'U' || c == 'G' || c == 'S' ){
+                    int t = which_monster(*room , p);
+                    if(t == -1)continue;
+                    if(room->monsters[t].turn)continue;
+                    room->monsters[t].move_count = 0;
                     if(rand()%5 > 1){
-                    hero.health -= room.monsters[t].damage;
+                    hero.health -= room->monsters[t].damage;
                     char message[50];
-                    sprintf(message , "The %s injures you" , room.monsters[t]);
+                    sprintf(message , "The %s injured you" , room->monsters[t].name);
                     show_msg(message , 0);
                     show_stats();
-                    room.monsters[t].turn = 1;
+                    room->monsters[t].turn = 1;
                     continue;
                     }
                     else{
                     char message[50];
-                    sprintf(message , "The %s misses you" , room.monsters[t]);
+                    sprintf(message , "The %s missed you" , room->monsters[t].name);
                     show_msg(message , 0);
                     show_stats();
-                    room.monsters[t].turn = 1;
+                    room->monsters[t].turn = 1;
                     continue;
                     }
                 }
@@ -1459,10 +1614,11 @@ int manage_monsters(room room){
                 int ch = mvwinch(gamewin , hero.loc.y + j , hero.loc.x + i);
                 int c = ch & A_CHARTEXT ;
                 struct point p ; p.y = hero.loc.y + j ; p.x = hero.loc.x + i;
-                if(c == 'S' || c == 'U' || c == 'G' || c == 'D'){
-                    int f = which_monster(room , p);
-                    if(room.monsters[f].turn)continue;
-                    if(room.monsters[f].move_count >= 5)continue;
+                if(c == 'U' || c == 'G' || c == 'D'){
+                    int f = which_monster(*room , p);
+                    if(f == -1)continue;
+                    if(room->monsters[f].turn)continue;
+                    if(room->monsters[f].move_count >= 5)continue;
                     int i , j;
                     if(hero.loc.y > p.y)j=1;
                     else if(hero.loc.y == p.y)j=0;
@@ -1475,32 +1631,103 @@ int manage_monsters(room room){
                     int t = mvwinch(gamewin , p.y + j , p.x + i) & A_CHARTEXT;
                     if(t == '.')flag = 0;
                     if(flag){
-                        i = !i;
+                        i = i ? 0 : 1;
                         t = mvwinch(gamewin , p.y + j , p.x + i) & A_CHARTEXT;
                         if(t =='.')flag = 0;
                     }
                     if(flag){
                         i = i_copy ;
-                        j = !j;
+                        j = j ? 0 : 1;
                         t = mvwinch(gamewin , p.y + j , p.x + i) & A_CHARTEXT;
                         if(t =='.')flag = 0;
                     }
                     if(flag)continue;
                     wattron(gamewin , A_BOLD);
                     mvwaddch(gamewin , p.y + j , p.x+ i , c);
+                    update_map(p.y + j , p.x+ i , c | A_BOLD);
                     wattroff(gamewin , A_BOLD);
                     mvwaddch(gamewin , p.y , p.x , '.');
-                    room.monsters[f].loc.y = p.y + j;
-                    room.monsters[f].loc.x = p.x + i;
-                    room.monsters[f].move_count++;
-                    room.monsters[f].turn = 1;
+                    update_map(p.y , p.x , '.');
+                    room->monsters[f].loc.y = p.y + j;
+                    room->monsters[f].loc.x = p.x + i;
+                    room->monsters[f].move_count++;
+                    room->monsters[f].turn = 1;
+                }
+                else if(c == 'S'){
+                    int f = which_monster(*room , p);
+                    if(f == -1)continue;
+                    if(room->monsters[f].turn)continue;
+                    int i , j;
+                    if(hero.loc.y > p.y)j=1;
+                    else if(hero.loc.y == p.y)j=0;
+                    else j = -1;
+                    if(hero.loc.x > p.x)i=1;
+                    else if(hero.loc.x == p.x)i=0;
+                    else i = -1;
+                    int flag = 1;
+                    int i_copy = i , j_copy = j;
+                    int t = mvwinch(gamewin , p.y + j , p.x + i) & A_CHARTEXT;
+                    if(t == '.')flag = 0;
+                    if(flag){
+                        i = i ? 0 : 1;
+                        t = mvwinch(gamewin , p.y + j , p.x + i) & A_CHARTEXT;
+                        if(t =='.')flag = 0;
+                    }
+                    if(flag){
+                        i = i_copy ;
+                        j = j ? 0 : 1;
+                        t = mvwinch(gamewin , p.y + j , p.x + i) & A_CHARTEXT;
+                        if(t =='.')flag = 0;
+                    }
+                    if(flag)continue;
+                    wattron(gamewin , A_BOLD);
+                    mvwaddch(gamewin , p.y + j , p.x+ i , c);
+                    update_map(p.y + j , p.x+ i , c | A_BOLD);
+                    wattroff(gamewin , A_BOLD);
+                    mvwaddch(gamewin , p.y , p.x , '.');
+                    update_map(p.y , p.x , '.');
+                    room->monsters[f].loc.y = p.y + j;
+                    room->monsters[f].loc.x = p.x + i;
+                    room->monsters[f].move_count++;
+                    room->monsters[f].turn = 1;
                 }
             }
         }
     }
-    for(int i = 0 ; i < room.monster_count ; i++){
-        room.monsters[i].turn = 0;
+    for(int i = 0 ; i < room->monster_count ; i++){
+        room->monsters[i].turn = 0;
     }
+    wrefresh(gamewin);
+}
+
+int we_attack(room* room){
+    if(hero.current_weapon == -1)show_msg("No weapon in hand" , 0);
+    else if(hero.current_weapon == 0 || hero.current_weapon == 1 ){
+        for(int i = -1 ; i <= 1 ; i++){
+            for(int j = -1 ; j <= 1 ; j++){
+                int ch = mvwinch(gamewin , hero.loc.y + j , hero.loc.x + i);
+                int c = ch & A_CHARTEXT;
+                struct point p ; p.y = hero.loc.y + j ; p.x = hero.loc.x + i;
+                if(c == 'D' || c == 'F' || c == 'G' || c == 'S' || c == 'U'){
+                    int f = which_monster(*room , p);
+                    room->monsters[f].health -= hero.current_weapon == 0 ? 5 * damage_boost : 10 * damage_boost ;
+                    char ma[50];
+                    sprintf(ma , "You hit %s" , room->monsters[f].name);
+                    show_msg(ma , 0);
+                    if(room->monsters[f].health <= 0){
+                        mvwaddch(gamewin , p.y , p.x , '.');
+                        update_map(p.y , p.x , '.');
+                        sprintf(ma , "You defeated %s" , room->monsters[f].name);
+                        show_msg(ma , 0);
+                    }
+                }
+            }
+        }
+    }
+    else{
+        
+    }
+    wrefresh(gamewin);
 }
 
 int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
@@ -1526,23 +1753,133 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
         wrefresh(stats);
     }
     else if(keypressed == 'w' || keypressed == 'W'){
-        for(int i = 0 ; i < 5 ; i++){
-            mvwprintw(stats , 7 + 2*i , 1 , "%d- %s: %d",i+1 , weapons[i] , hero.weapon_count[i]);
-        }
+        mvwprintw(stats , 7 , 1 , "melee: ");
+        mvwprintw(stats , 9 , 3 , "1-mace(%d dmg) = %d", 5 * damage_boost ,hero.weapon_count[0]);
+        mvwprintw(stats , 11 , 3 , "2-sword(%d dmg) = %d", 7*damage_boost , hero.weapon_count[1]);
+        mvwprintw(stats , 13 , 1 , "range: ");
+        mvwprintw(stats , 15 , 3 , "3-arrow(%d dmg) = %d", 5*damage_boost , hero.weapon_count[2]);
+        mvwprintw(stats , 17 , 3 , "4-dagger(%d dmg) = %d", 12*damage_boost , hero.weapon_count[3]);
+        mvwprintw(stats , 19 , 3 , "5-wand(%d dmg) = %d", 15*damage_boost , hero.weapon_count[4]);
+        mvwprintw(stats , 21 , 1 , "q-put away weapon");
         show_stats();
         int in = 0;
         wrefresh(gamewin);
         cbreak();
         noecho();
         in = wgetch(stats);
-        
+
+        if(in == 'q'){
+            show_msg("weapon put back" , 0);
+            show_msg("pick a weapon" , 1);
+            in = wgetch(stats);
+            switch(in){
+                case 1 :
+                if(hero.weapon_count[0] > 0)
+                show_msg("You wield your mace" , 0);
+                else
+                show_msg("You don't have that" , 0);
+                break;
+                case 2 :
+                if(hero.weapon_count[1] > 0)
+                show_msg("You wield your sword" , 0);
+                else
+                show_msg("You don't have that" , 0);
+                break;
+                case 3 :
+                if(hero.weapon_count[2] > 0)
+                show_msg("You take your bow" , 0);
+                else
+                show_msg("You don't have that" , 0);
+                break;
+                case 4 :
+                if(hero.weapon_count[3] > 0)
+                show_msg("You hold a dagger" , 0);
+                else
+                show_msg("You don't have that" , 0);
+                break;
+                case 5 :
+                if(hero.weapon_count[4] > 0)
+                show_msg("You take your wand" , 0);
+                else
+                show_msg("You don't have that" , 0);
+                break;
+            }
+        }
         if(in == '1'){
-            hero.current_weapon = 0;
-            show_msg("You wield your mace" , 0);
+            if(hero.current_weapon == -1){
+                hero.current_weapon = 0;
+                show_msg("You wield your mace" , 0);
+            }
+            else if(hero.current_weapon == 0){
+                show_msg("You are already using a mace" , 0);
+            }
+            else{
+                show_msg("First put your current weapon back" , 0);
+            }
+        }
+        if(in == '2'){
+            if(hero.weapon_count[1] == 0){
+                show_msg("You don't have that" , 0);
+            }
+            else if(hero.current_weapon == -1){
+                hero.current_weapon = 1;
+                show_msg("You wield your sword" , 0);
+            }
+            else if(hero.current_weapon == 1){
+                show_msg("You are already using a sword " , 0);
+            }
+            else{
+                show_msg("First put your current weapon back" , 0);
+            }
+        }
+        if(in == '3'){
+            if(hero.weapon_count[2] == 0){
+                show_msg("You don't have that" , 0);
+            }
+            else if(hero.current_weapon == -1){
+                hero.current_weapon = 2;
+                show_msg("You take your bow" , 0);
+            }
+            else if(hero.current_weapon == 2){
+                show_msg("You are already using a bow" , 0);
+            }
+            else{
+                show_msg("First put your current weapon back" , 0);
+            }
+        }
+        if(in == '4'){
+            if(hero.weapon_count[3] == 0){
+                show_msg("You don't have that" , 0);
+            }
+            else if(hero.current_weapon == -1){
+                hero.current_weapon = 3;
+                show_msg("You hold a dagger" , 0);
+            }
+            else if(hero.current_weapon == 3){
+                show_msg("You are already using a dagger" , 0);
+            }
+            else{
+                show_msg("First put your current weapon back" , 0);
+            }
+        }
+        if(in == '5'){
+            if(hero.weapon_count[4] == 0){
+                show_msg("You don't have that" , 0);
+            }
+            else if(hero.current_weapon == -1){
+                hero.current_weapon = 4;
+                show_msg("You take your wand" , 0);
+            }
+            else if(hero.current_weapon == 4){
+                show_msg("You are already using a wand" , 0);
+            }
+            else{
+                show_msg("First put your current weapon back" , 0);
+            }
         }
 
         show_stats();
-        delete_partly(stats , 10 , 25 , 7 , 2);
+        delete_partly(stats , 20 , 30 , 7 , 2);
         wrefresh(stats);
     }
     else if(keypressed == 'q' || keypressed == 'Q'){
@@ -1567,6 +1904,25 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
         show_stats();
         delete_partly(stats , 10 , 20 , 7 , 2);
         wrefresh(stats);
+    }
+    else if(keypressed == ' '){
+        int w = which(hero.loc.y , hero.loc.x , rooms , room_count);
+        if(w >=0){
+        we_attack(&rooms[w]);
+        manage_monsters(&rooms[w]);
+        }
+    }
+    else if(keypressed == 'm' || keypressed == 'm'){
+        if(revealed == 0) {
+            print_back();
+            revealed = 1;
+        }
+        else {
+            print_map_black();
+            reveal_marked(rooms , room_count);
+            wrefresh(gamewin);
+            revealed = 0;
+        }
     }
     else{
         return 4;
@@ -1601,18 +1957,44 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
     int next_block = mvwinch(win , hero.loc.y + j , hero.loc.x + i);
     int next= next_block & A_CHARTEXT;
     int w = which(hero.loc.y , hero.loc.x , rooms , room_count);  
-    if(w == -1)w = which(hero.loc.y + j , hero.loc.x + i , rooms , room_count);     
-    if(next_block == '.' || next_block == '#' || next_block == '+' || next_block == '?' || next_block == '@'){//basic movement not picking items nor heading through traps
+    if(w == -1)w = which(hero.loc.y + j , hero.loc.x + i , rooms , room_count);  
+    if(w >= 0 && rooms[w].marked == 0){
+        rooms[w].marked =1;
+        reveal_area(rooms[w].y , rooms[w].x, rooms[w].height , rooms[w].width);
+    }  
+    if(next_block == '+' || next_block == '@' || next_block == '#' || next == '#'){ 
+        for(int m = -3 ; m <= 3 ; m++){
+            for(int n = -3 ; n <= 3 ; n++){
+                int t = mvwinch(gamewin , hero.loc.y + n , hero.loc.x + m) & A_CHARTEXT;
+                if(t == '#' || t == '+'){
+                mvwaddch(gamewin , hero.loc.y + n , hero.loc.x + m , t);
+                if(t == '#'){
+                map[hero.loc.y + n - 2][hero.loc.x + m - col/4 + 1].pathway = 1;
+                map[hero.loc.y + n - 2][hero.loc.x + m - col/4 + 1].visited = 1;
+                }
+            }
+        }
+        }
+    }
+    if(next == '.' || next == '#' || next == '+' || next == '?' || next_block == '@'){//basic movement not picking items nor heading through traps
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = next_block;
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
     }
     else if(next_block == '&'){//password generation
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = next_block;
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         wrefresh(win);
         int password = rand()%9000 + 1000 ;
         rooms[w].password1 = password;
@@ -1640,12 +2022,16 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
         delwin(pass);
     }
     else if(next == '-' || next == '|'){//hidden doors
-        int c = mvwinch(win , hero.loc.y + 2*j , hero.loc.x + 2*i);
-        if(c != ' '){
+        int c = mvwinch(win , hero.loc.y + 2*j , hero.loc.x + 2*i) & A_CHARTEXT;
+        if(c != ' ' && c != '-' && c!= '|' && (i == 0 || j == 0)){
             mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
             *pre = '?';
             hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
             mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         }
     }
     else if(next_block == '@' + COLOR_PAIR(1)){
@@ -1671,6 +2057,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
             delwin(pass);
             delete_partly(win , 7 , 20 , 2, col - 22);
             mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+            update_map(hero.loc.y + j , hero.loc.x + i , '@');
         }
         else{
             wattron(win , COLOR_PAIR(3));
@@ -1682,6 +2069,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
             delete_partly(win , 7 , 20 , 2, col - 22);
             wattron(win , COLOR_PAIR(3));
             mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+            update_map(hero.loc.y + j , hero.loc.x + i , '@' | COLOR_PAIR(3));
             wattroff(win , COLOR_PAIR(3));
         }
         
@@ -1709,6 +2097,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
             delwin(pass);
             delete_partly(win , 7 , 20 , 2, col - 22);
             mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+            update_map(hero.loc.y + j , hero.loc.x + i , '@');
         }
         else{
             wattron(win , COLOR_PAIR(4));
@@ -1720,6 +2109,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
             delete_partly(win , 7 , 20 , 2, col - 22);
             wattron(win , COLOR_PAIR(4));
             mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+            update_map(hero.loc.y + j , hero.loc.x + i , '@'|COLOR_PAIR(4));
             wattroff(win , COLOR_PAIR(4));
         }
     }
@@ -1746,6 +2136,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
             delwin(pass);
             delete_partly(win , 7 , 20 , 2, col - 22);
             mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+            update_map(hero.loc.y + j , hero.loc.x + i , '@');
         }
         else{
             wattron(win , COLOR_PAIR(1));
@@ -1757,21 +2148,20 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
             delete_partly(win , 7 , 20 , 2, col - 22);
             wattron(win , COLOR_PAIR(5));
             mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+            update_map(hero.loc.y + j , hero.loc.x + i , '@'|COLOR_PAIR(5));
             wattroff(win , COLOR_PAIR(5));
         }
-    }
-    else if(next_block == '@' + COLOR_PAIR(2)){
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        *pre = '@';
-        hero.loc.y += j ; hero.loc.x += i ;
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
     }
     else if(next_block == '$' + COLOR_PAIR(6)){
         hero.gold_count++;
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = '.';
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         for(int t = 0 ; t < rooms[w].gold_count ; t++){
             if(rooms[w].gold[t].y == hero.loc.y && rooms[w].gold[t].x == hero.loc.x){
                 rooms[w].gold[t].y = -1;
@@ -1783,9 +2173,13 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
     else if(next_block == '$' + COLOR_PAIR(8)){
         hero.bgold_count++;
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = '.';
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         for(int t = 0 ; t < rooms[w].black_gold_count ; t++){
             if(rooms[w].black_gold[t].y == hero.loc.y && rooms[w].black_gold[t].x == hero.loc.x){
                 rooms[w].black_gold[t].y = -1;
@@ -1800,9 +2194,13 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
         else b++;
         hero.food_count[b]++;
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = '.';
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         for(int t = 0 ; t < rooms[w].foods_count ; t++){
             if(rooms[w].foods[t].y == hero.loc.y && rooms[w].foods[t].x == hero.loc.x){
                 rooms[w].foods[t].y = -1;
@@ -1819,9 +2217,13 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
         else if(b >= 6)hero.weapon_count[4]+=5;
         
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = '.';
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         for(int t = 0 ; t < rooms[w].weapon_count ; t++){
             if(rooms[w].weapons[t].y == hero.loc.y && rooms[w].weapons[t].x == hero.loc.x){
                 rooms[w].weapons[t].y = -1;
@@ -1835,9 +2237,13 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
         hero.potion_count[b]++;
         
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = '.';
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         for(int t = 0 ; t < rooms[w].potion_count ; t++){
             if(rooms[w].potions[t].y == hero.loc.y && rooms[w].potions[t].x == hero.loc.x){
                 rooms[w].potions[t].y = -1;
@@ -1848,9 +2254,13 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
     }
     else if(next_block == '^'){
         mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+        update_map(hero.loc.y , hero.loc.x , *pre);
         *pre = '^';
         hero.loc.y += j ; hero.loc.x += i ;
+        wattron(gamewin , COLOR_PAIR(hero_color));
         mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+        wattroff(gamewin , COLOR_PAIR(hero_color));
+        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         hero.health -= 4;
         show_stats();
     }
@@ -1881,7 +2291,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
     }
     if(hero.health <= 0)return 3 ; //deceased
     if(movflag){
-        manage_monsters(rooms[w]);
+        manage_monsters(&rooms[w]);
         return 1;
     }
     else
@@ -1973,6 +2383,8 @@ int main(){
     init_pair(6 , 11 , COLOR_BLACK);
     init_pair(4 , 10 , COLOR_BLACK);
     init_pair(5 , COLOR_BLUE , COLOR_BLACK);
+    init_pair(13 , COLOR_BLACK , COLOR_BLACK);
+    init_pair(14 , COLOR_WHITE , COLOR_BLACK);
 
     welcome_page(row , col);
     int logged_in = check_user(row , col);
@@ -1984,8 +2396,8 @@ int main(){
     }
     
     gamewin = newwin(row - 2 , col - 2 , 1 , 1);
-    stats = newwin(row/4*3 - 1, col/5 , row/4, 5);
-    msg = newwin(row/8 , col/5 , 4 , 5);
+    stats = newwin(row/4*3 - 5, col/5 , row/4, 5);
+    msg = newwin(row/8 , col/4 -6 , 4 , 5);
     wattron(gamewin ,COLOR_PAIR(8));
     box(gamewin , 0 , 0);
     wattroff(gamewin ,COLOR_PAIR(8));
@@ -2001,13 +2413,12 @@ int main(){
     wrefresh(msg);
     int n=0 ;
     initialize_hero();
-    pathways = (struct point **)malloc(10 * sizeof(struct point *));
-    for(int i = 0 ; i < 10 ; i++){
-        pathways[i] = (struct point *)malloc(sizeof(struct point));
-    }
     struct point * stairs = (struct point *)malloc(4 * sizeof(struct point));
     stairs[0].y = -1 ; stairs[0].x = -1;
     room** rooms = (room**)malloc(4 * sizeof(room*));
+    for(int i = 0 ; i < 4 ; i++){
+    rooms[i] = (room*)malloc(10 * sizeof(room));
+    }
     int room_counts[4];
     show_stats();
     
@@ -2032,10 +2443,16 @@ int main(){
         break;
     }
     room_counts[level-1] = room_count;
+    scan_map(gamewin);
+    print_map_black();
+    int kj = which(hero.loc.y , hero.loc.x ,rooms[level-1] , room_counts[level-1]);
+    rooms[level-1][kj].marked = 1;
+    reveal_area(rooms[level-1][kj].y , rooms[level-1][kj].x , rooms[level-1][kj].height , rooms[level-1][kj].width);
     //input
     keypad(stdscr, TRUE); 
     nodelay(stdscr, TRUE);
     noecho();
+    cbreak();
     int w = which(hero.loc.y , hero.loc.x , rooms[level-1] , room_counts[level-1]);
     wrefresh(gamewin);
     wrefresh(stats);

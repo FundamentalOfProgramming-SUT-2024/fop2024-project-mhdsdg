@@ -1,4 +1,4 @@
-//necessary libraries
+//necessary headers
 #include<ncursesw/ncurses.h>
 #include<stdlib.h>
 #include<time.h>
@@ -12,15 +12,35 @@
 #include <fcntl.h> 
 #include <string.h>
 #include <dirent.h>
+#include <stdbool.h>
+#include <SDL.h>  
+#include <SDL_mixer.h>
 int row , col;
 int difficulty = 0;
 int hero_color = 14;
+int speed_flag = -20;
+int regen_flag = -20;
+int damage_flag = -20;
+int logged_in = 0;
+int speed_boost = 1;
+int has_saved;
+Mix_Music* prev ;
+Mix_Music* prev ;
+Mix_Music* m1;
+Mix_Music* m2;
+Mix_Music* m3;
+Mix_Music* l1;
+Mix_Music* l2;
+Mix_Music* l3;
+Mix_Music* l4;
+Mix_Music* lt;
 //functions
 //declaring just in case
 char address[100];
 char user[100];
 int check_user(int row ,int col) ;
 int Main_menu();
+int load_game();
 //welcome 
 void welcome_page(int row , int col){
     mvprintw(row/2 , col/2 - 2, "rogue");
@@ -273,7 +293,7 @@ int create_user(int row , int col){
     }
     file = fopen(text , "w");
     fprintf(file , "%s\n" , password);
-    for(int i = 0 ; i < 4 ; i++){
+    for(int i = 0 ; i < 22 ; i++){
         fprintf(file ,"0\n");
     }
     strcpy(user , username);
@@ -486,7 +506,13 @@ int score_menu(){
         strncpy(mamad , users[i].filename , size - 4);
         mamad[size-4] = '\0';
         if(strcmp(mamad , user) == 0)wattron(win , A_REVERSE);
+        if(i == 0)wattron(win , COLOR_PAIR(6));
+        if(i == 1)wattron(win , COLOR_PAIR(10));
+        if(i == 2)wattron(win , COLOR_PAIR(12));
         mvwprintw(win , 4+8*i , 2 , "%10s%20d%20d%20d%20d" , mamad , users[i].value ,users[i].gold_count,users[i].game_count,users[i].exp);
+        if(i == 0)wattroff(win , COLOR_PAIR(6));
+        if(i == 1)wattroff(win , COLOR_PAIR(10));
+        if(i == 2)wattroff(win , COLOR_PAIR(12));
         if(strcmp(mamad , user) == 0)wattroff(win , A_REVERSE);
         chtype color;
         if(i == 0){color = COLOR_PAIR(6);
@@ -528,15 +554,19 @@ int score_menu(){
     wgetch(win);
     wclear(win);
     box(win , 0 , 0);
-    mvwprintw(win , 2 , 2 , "%10s%20s%20s%20s%20s" , "Name: " , "All-time score: " , "Total gold: " , "Games played: " , "EXP: ");
-    for(int i = 3 ; i < 13 && i < file_count ; i++){
-        char mamad[100];
-        int size = strlen(users[i].filename);
-        strncpy(mamad , users[i].filename , size - 4);
-        mamad[size-4] = '\0';
-        if(strcmp(mamad , user) == 0)wattron(win , A_REVERSE);
-        mvwprintw(win , 4+3*(i-3) , 2 , "%10s%20d%20d%20d%20d" , mamad , users[i].value ,users[i].gold_count,users[i].game_count,users[i].exp);
-        if(strcmp(mamad , user) == 0)wattroff(win , A_REVERSE);
+    for(int j = 0 ; j < 9 ; j++){
+        mvwprintw(win , 2 , 2 , "%10s%20s%20s%20s%20s" , "Name: " , "All-time score: " , "Total gold: " , "Games played: " , "EXP: ");
+        int i = 3 + 8*j;
+        for(i ; i < 11 + 8*j && i < file_count ; i++){
+            char mamad[100];
+            int size = strlen(users[i].filename);
+            strncpy(mamad , users[i].filename , size - 4);
+            mamad[size-4] = '\0';
+            if(strcmp(mamad , user) == 0)wattron(win , A_REVERSE);
+            mvwprintw(win , 4+3*(i-3) , 2 , "%10s%20d%20d%20d%20d" , mamad , users[i].value ,users[i].gold_count,users[i].game_count,users[i].exp);
+            if(strcmp(mamad , user) == 0)wattroff(win , A_REVERSE);
+        }
+        if(i >= file_count)break;
     }
     wrefresh(win);
     wgetch(win);
@@ -598,6 +628,26 @@ int difficulty_menu(){
     return setting_menu();
 }
 
+int music_menu(){
+    WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
+    box(win , 0 , 0);
+    const char * options[5] = {"1" , "2" , "3" , "none"};
+    int t = multiple_choice(options , 4 , 0 , win);
+    wclear(win);
+    delwin(win);
+    Mix_HaltMusic();
+    if(t == 0){
+        Mix_PlayMusic(m1, -1);
+    }
+    if(t == 1){
+        Mix_PlayMusic(m2, -1);
+    }
+    if(t == 2){
+        Mix_PlayMusic(m3, -1);
+    }
+    return setting_menu();
+}
+
 int setting_menu(){
     WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
     box(win , 0 , 0);
@@ -608,16 +658,17 @@ int setting_menu(){
     if(t == 0)return choose_color();
     else if(t == 3)return Main_menu();
     else if(t == 1)return difficulty_menu();
+    else if(t == 2)return music_menu();
 }
 
 int Main_menu(){
-    WINDOW* win = newwin(7 , 30 , row/2-4 ,col/2-15 );
+    WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
     box(win , 0 , 0);
     const char * options[5] = {"New game" , "Resume last game" , "Scores" , "Settings"};
     int t = multiple_choice(options , 4 , 0 , win);
     delwin(win);
     if(t == 0){return t;}
-    if(t == 1){return t;}
+    if(t == 1){return load_game();}
     if(t == 2){return score_menu();}
     if(t == 3){return setting_menu();}
 }
@@ -671,6 +722,7 @@ typedef struct room {
     struct point* weapons;
     int monster_count ;
     struct monster* monsters ;
+    int enchanted ;
 
 }room ;
 
@@ -699,13 +751,14 @@ struct hero{
 }hero;
 
 void initialize_hero(){
-    hero.max_health = 40;
-    hero.health = 40;
+    hero.max_health = 10000 - difficulty*15;
+    hero.health = hero.max_health;
     hero.max_hunger = 20;
     hero.hunger = 20;
     hero.gold_count = 0;
     hero.bgold_count = 0;
     hero.current_weapon = -1;
+    hero.loc.y = -1;
     for(int i = 0 ; i < 4; i++){
         hero.food_count[i] =0;
     }
@@ -734,6 +787,7 @@ void drugs_and_cocaine(room* rooms , int room_count ,WINDOW* win);
 void this_is_america(room* rooms , int room_count , WINDOW* win);
 void show_stats();
 void show_msg(const char * message , int n);
+void save_stats();
 int interrupted = 0;  
 int level = 1;
 int hunger0 = 0;
@@ -767,8 +821,8 @@ void you_think_you_win(){
     mvwprintw(win , row/2 - 2 ,col/2 - 40 ,"At best you are a wild animal killing others to achive more profit or another day of sunlight.");
     mvwprintw(win , row/2 - 1 ,col/2 - 40 ,"But you don't do it to have a nice living . you enjoy piling up coins . you're a coin addict.");
     mvwprintw(win , row/2 - 0 ,col/2 - 40 ,"If you don't believe me tell me how much would be enough ?");
-    mvwprintw(win , row/2 - -1 ,col/2 - 40 ,"If you have an answer you are now furious that a number higher than that exists . you want it.");
-    mvwprintw(win , row/2 - -2,col/2 - 40 ,"anyway here is what you gathered: %d pts",hero.bgold_count*200 + hero.gold_count*50);
+    mvwprintw(win , row/2 - -1 ,col/2 - 40 ,"If you have an answer you are now furious that a number higher than that exists . you want to get it.");
+    mvwprintw(win , row/2 - -2,col/2 - 40 ,"anyway here is what you gathered: %d pts",hero.bgold_count*200 + hero.gold_count*50 + hero.score);
     wrefresh(win);
 }
 
@@ -800,7 +854,7 @@ void scan_map(WINDOW *win) {
 }
 
 void print_map_black() {  
-    for (int y = 0; y < row - 4; y++) {  
+    for (int y = 0; y < row - 5; y++) {  
         for (int x = 0; x < col * 3 / 4 - 5; x++) {  
             wattr_on(gamewin, COLOR_PAIR(13), NULL); 
             mvwaddch(gamewin,2+y,col/4-1+ x, map[y][x].ch);             
@@ -961,6 +1015,7 @@ room* create_random_rooms(WINDOW * win ,int row ,int col,int n , int dir , struc
     rooms[i].monsters = malloc(10 * sizeof(struct monster));
     rooms[i].key.y = -1;
     rooms[i].stair_flag = 0;
+    rooms[i].enchanted = 0;
     if (!rooms_overlap(rooms[i], rooms, valid_rooms)) {  
             make_room(rooms[i], win);  
             valid_rooms++;  
@@ -974,7 +1029,7 @@ room* create_random_rooms(WINDOW * win ,int row ,int col,int n , int dir , struc
     }
     }
     if((contain.y != -1 && mvwinch(win , contain.y , contain.x) != '.')){
-        delete_partly(win ,row -2 ,col*3/4 - 5 ,0, col/4-1);
+        delete_partly(win ,row -4 ,col*3/4 - 5 ,2, col/4-1);
         return create_random_rooms(win , row , col , n , dir , contain);
     }
 
@@ -1203,16 +1258,16 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
         //right to left
         } else {  
             if(room2_center_x == rooms[i].x){
-                room2_center_x-=4;
-               } 
-            if(room2_center_x == rooms[i+2].x + rooms[i+2].width-1){
-                room2_center_x+=4;
-            }
-            if(room2_center_x == rooms[i].x+1){
                 room2_center_x-=3;
                } 
-            if(room2_center_x == rooms[i+2].x + rooms[i+2].width){
+            if(room2_center_x == rooms[i+2].x + rooms[i+2].width-1){
                 room2_center_x+=3;
+            }
+            if(room2_center_x == rooms[i].x+1){
+                room2_center_x-=2;
+               } 
+            if(room2_center_x == rooms[i+2].x + rooms[i+2].width){
+                room2_center_x+=2;
             }
             if(room1_center_y == rooms[i+1].y-1){
                 room1_center_y+=2;
@@ -1298,7 +1353,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
     traps_and_pillars(rooms , room_count , win);
     place_stair(room_count-1 , rooms , win );
     
-    if(level == 1)
+    if(level == 1 || hero.loc.y == -1)
     place_hero(win , rooms[0] , -1 , -1);
     else
     place_hero(win , rooms[0] , contain.y , contain.x);
@@ -1309,15 +1364,26 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
         rooms[n].filled[contain.y - rooms[n].y][contain.x - rooms[n].x] = 1;
         mvwaddch(win , contain.y , contain.x , '>');
     }
-    if(level == 4){
-        getting_rich(&rooms[room_count-1] , 1 , win);
-        getting_richer(&rooms[room_count-1] , 1 , win);
-        color_the_room(rooms[room_count-1] , COLOR_PAIR(6));
-    }
+    
     bless_african(rooms , room_count , win);
     getting_rich(rooms , room_count , win);
     getting_richer(rooms , room_count , win);
     drugs_and_cocaine(rooms , room_count , win);
+    if(level <= 4){
+        int t = rand()%room_count;
+        color_the_room(rooms[t] , COLOR_PAIR(5));
+        rooms[t].enchanted = 1;
+        for(int i = rooms[t].potion_count ; i < rooms[t].potion_count + 5 ; i++){
+            rooms[t].potions[i] = pick_a_random_point(rooms[t]);
+            rooms[t].filled[rooms[t].potions[i].y - rooms[t].y][rooms[t].potions[i].x - rooms[t].x] == 1;
+            wattron(win , COLOR_PAIR(5));
+            wattron(win , A_BOLD);
+            mvwaddch(win , rooms[t].potions[i].y , rooms[t].potions[i].x , '~');
+            wattroff(win , A_BOLD);
+            wattroff(win , COLOR_PAIR(5));
+        }
+        rooms[t].potion_count += 5;
+    }
     this_is_america(rooms , room_count , win);
     if(level == 1){
         for(int i = 0 ; i < 4 ; i++)place_deamon(rooms , room_count);
@@ -1427,7 +1493,7 @@ void traps_and_pillars(room* rooms , int room_count , WINDOW* win){
             rooms[i].traps[j].y = rooms[i].y + y;
             rooms[i].trap_status[j] = 0;
             rooms[i].filled[y][x] = 1;
-            mvwaddch(win , rooms[i].y + y , rooms[i].x + x , '^');
+            mvwaddch(win , rooms[i].y + y , rooms[i].x + x , '.');
         }
         for(int j = 0 ; j < rooms[i].pillar_count ; j++){
             int x = rand()%(rooms[i].width-4) + 2 ;
@@ -1447,7 +1513,7 @@ void traps_and_pillars(room* rooms , int room_count , WINDOW* win){
 void place_stair(int roomnum , room* rooms , WINDOW* win){
     struct point p = pick_a_random_point(rooms[roomnum]);
     rooms[roomnum].stair = p;
-    rooms[roomnum].filled[p.y - rooms[roomnum].y][p.x - rooms[roomnum].y] = 1;
+    rooms[roomnum].filled[p.y - rooms[roomnum].y][p.x - rooms[roomnum].x] = 1;
     mvwaddch(win , p.y , p.x , '<');
 }
 
@@ -1556,13 +1622,15 @@ void show_msg(const char * message , int n){
     wattron(msg , COLOR_CYAN);
     wrefresh(msg);
     int in = 0 ;
-    if(n){
-        delete_partly(msg , 2 , 30 , 2 , 2);
-        return;}
     while(1){
         in = wgetch(msg);
+        if(n){
+            delete_partly(msg , 2 , 35 , 2 , 2);
+            wrefresh(msg);
+            break;
+        }
         if(in == ' '){
-            delete_partly(msg , 2 , 30 , 2 , 2);
+            delete_partly(msg , 2 , 35 , 2 , 2);
             wrefresh(msg);
             break;
         }
@@ -1579,8 +1647,8 @@ int which_monster(room room , struct point p){
 }
 
 int manage_monsters(room* room){
-    for(int i = -4 ; i <= 4 ; i++){
-        for(int j = -4 ; j <= 4 ; j++){
+    for(int i = -3 - difficulty ; i <= 3 + difficulty ; i++){
+        for(int j = -3 - difficulty ; j <= 3 + difficulty ; j++){
             if(i <= 1 && i >= -1 && j >= -1 && j <= 1){
                 int ch = mvwinch(gamewin , hero.loc.y + j , hero.loc.x + i);
                 int c = ch & A_CHARTEXT ;
@@ -1718,14 +1786,157 @@ int we_attack(room* room){
                         mvwaddch(gamewin , p.y , p.x , '.');
                         update_map(p.y , p.x , '.');
                         sprintf(ma , "You defeated %s" , room->monsters[f].name);
+                        hero.score += 50;
+                        show_stats();
                         show_msg(ma , 0);
+                    }
+                    if(hero.health <= 0){
+                        ha_ha_loser();
+                        if(logged_in)save_stats(0);
+                        endwin();
+                        return 3;
                     }
                 }
             }
         }
     }
     else{
-        
+        int in = wgetch(gamewin);
+        if(in <= '9' && in >= '0');
+        else return -1;
+        int j , i ;
+    switch(in - 48){
+        case 1 : 
+        i = -1 ; j = 1 ; break ;
+        case 2 : 
+        i = 0  ; j = 1 ; break ;
+        case 3 : 
+        i = 1  ; j = 1 ; break ;
+        case 4 : 
+        i = -1 ; j = 0  ; break ;
+        case 6 :
+        i = 1  ; j = 0  ; break ;
+        case 7 : 
+        i = -1 ; j = -1  ; break ;
+        case 8 :
+        i = 0  ; j = -1  ; break ;
+        case 9 : 
+        i = 1  ; j = -1  ; break ;
+        default :
+        break;
+    }
+    int next = mvwinch(gamewin,hero.loc.y + j , hero.loc.x + i);
+    if(next == '-' || next == '|' || next == 'O'){
+        return 0;
+    }
+    
+    if(i >= 0 && j >= 0){
+        for(int m = 0 ,n = 0; m <= 5*j && n <= 5*i ; m+=j , n+=i){  
+            struct point p ; p.y = hero.loc.y + m ; p.x = hero.loc.x + n;
+            int c = mvwinch(gamewin , hero.loc.y + m , hero.loc.x + n) & A_CHARTEXT; 
+            if(m == 0 && n == 0)continue;  
+            if(c == 'O' || c == '|' || c == '-'){
+                if(hero.current_weapon!=4 && mvwinch(gamewin,hero.loc.y+m-j , hero.loc.x +n-i) == '.'){
+                    if(hero.current_weapon == 2)mvwaddch(gamewin ,hero.loc.y+m-j ,hero.loc.x +n-i , '!');
+                    else if(hero.current_weapon == 3)mvwaddch(gamewin ,hero.loc.y+m-j ,hero.loc.x +n-i , '/');
+                    else show_msg("The projectile was broken" , 1);
+                    return 2;
+                }
+            }     
+            if(c == 'D' || c == 'F' || c == 'U' || c == 'G' || c == 'S'){
+                int f = which_monster(*room , p);
+                    int damage ;
+                    switch(hero.current_weapon){
+                        case 2 : damage = 5;break;
+                        case 3 : damage = 12;break;
+                        case 4 : damage = 15;break;
+                    }
+                    room->monsters[f].health -= damage* damage_boost;
+                    char ma[50];
+                    sprintf(ma , "You shot %s" , room->monsters[f].name);
+                    hero.weapon_count[hero.current_weapon]--;
+                    show_msg(ma , 0);
+                    if(room->monsters[f].health <= 0){
+                        mvwaddch(gamewin , p.y , p.x , '.');
+                        update_map(p.y , p.x , '.');
+                        sprintf(ma , "You defeated %s" , room->monsters[f].name);
+                        hero.score += 50;
+                        show_stats();
+                        show_msg(ma , 0);
+                    }
+                    if(hero.health <= 0){
+                        ha_ha_loser();
+                        if(logged_in)save_stats(0);
+                        endwin();
+                        return 3;
+                    }
+                    return 1;
+            }
+            
+            if(n==5*i&&m==5*j){
+                if(hero.current_weapon!=4 && mvwinch(gamewin,hero.loc.y+m , hero.loc.x +n) == '.'){
+                    if(hero.current_weapon == 2)mvwaddch(gamewin ,hero.loc.y+m ,hero.loc.x +n , '!');
+                    else if(hero.current_weapon == 3)mvwaddch(gamewin ,hero.loc.y+m ,hero.loc.x +n , '/');
+                    else show_msg("The projectile was broken" , 1);
+                    return 2;
+                }
+            }
+        }
+    }
+    else{
+        for(int m = 0 ,n = 0; m >= 5*j && n >= 5*i ; m+=j , n+=i){  
+            struct point p ; p.y = hero.loc.y + m ; p.x = hero.loc.x + n;
+            int c = mvwinch(gamewin , hero.loc.y + m , hero.loc.x + n) & A_CHARTEXT; 
+            if(m == 0 && n == 0)continue;  
+            if(c == 'O' || c == '|' || c == '-'){
+                if(hero.current_weapon!=4 && mvwinch(gamewin,hero.loc.y+m-j , hero.loc.x +n-i) == '.'){
+                    if(hero.current_weapon == 2)mvwaddch(gamewin ,hero.loc.y+m-j ,hero.loc.x +n-i , '!');
+                    else if(hero.current_weapon == 3)mvwaddch(gamewin ,hero.loc.y+m-j ,hero.loc.x +n-i , '/');
+                    else show_msg("The projectile was broken" , 1);
+                    return 2;
+                }
+            }     
+            if(c == 'D' || c == 'F' || c == 'U' || c == 'G' || c == 'S'){
+                int f = which_monster(*room , p);
+                    int damage ;
+                    switch(hero.current_weapon){
+                        case 2 : damage = 5;break;
+                        case 3 : damage = 12;break;
+                        case 4 : damage = 15;break;
+                    }
+                    room->monsters[f].health -= damage* damage_boost;
+                    char ma[50];
+                    sprintf(ma , "You shot %s" , room->monsters[f].name);
+                    hero.weapon_count[hero.current_weapon]--;
+                    show_msg(ma , 0);
+                    if(room->monsters[f].health <= 0){
+                        mvwaddch(gamewin , p.y , p.x , '.');
+                        update_map(p.y , p.x , '.');
+                        sprintf(ma , "You defeated %s" , room->monsters[f].name);
+                        hero.score += 50;
+                        show_stats();
+                        show_msg(ma , 0);
+                    }
+                    if(hero.health <= 0){
+                        ha_ha_loser();
+                        if(logged_in)save_stats(0);
+                        endwin();
+                        return 3;
+                    }
+                    return 1;
+            }
+            
+            if(n==5*i&&m==5*j){
+                if(hero.current_weapon!=4 && mvwinch(gamewin,hero.loc.y+m , hero.loc.x +n) == '.'){
+                    if(hero.current_weapon == 2)mvwaddch(gamewin ,hero.loc.y+m ,hero.loc.x +n , '!');
+                    else if(hero.current_weapon == 3)mvwaddch(gamewin ,hero.loc.y+m ,hero.loc.x +n , '/');
+                    else show_msg("The projectile was broken" , 1);
+                    return 2;
+                }
+            }
+        }
+    }
+    
     }
     wrefresh(gamewin);
 }
@@ -1745,7 +1956,26 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
         if(in == '1' && hero.food_count[0]>0){
             hero.food_count[0]--;
             hero.hunger += 4;
+            hero.health += 4 * regen_boost ;
+            if(hero.health > hero.max_health)hero.health = hero.max_health;
             if(hero.hunger > hero.max_hunger)hero.hunger = hero.max_hunger;
+        }
+        if(in == '2' && hero.food_count[1]>0){
+            hero.food_count[1]--;
+            damage_flag = hero.total_exp;
+            damage_boost = 2;
+            show_msg("You feel stronger" , 0);
+            hero.hunger += 4;
+            hero.health += 4 * regen_boost ;
+            if(hero.health > hero.max_health)hero.health = hero.max_health;
+            if(hero.hunger > hero.max_hunger)hero.hunger = hero.max_hunger;
+        }
+        if(in == '3' && hero.food_count[2]>0){
+            hero.food_count[2]--;
+            speed_flag = hero.total_exp;
+            show_stats();
+            show_msg("Your speed got doubled" , 0);
+            show_stats();
         }
 
         show_stats();
@@ -1755,7 +1985,7 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
     else if(keypressed == 'w' || keypressed == 'W'){
         mvwprintw(stats , 7 , 1 , "melee: ");
         mvwprintw(stats , 9 , 3 , "1-mace(%d dmg) = %d", 5 * damage_boost ,hero.weapon_count[0]);
-        mvwprintw(stats , 11 , 3 , "2-sword(%d dmg) = %d", 7*damage_boost , hero.weapon_count[1]);
+        mvwprintw(stats , 11 , 3 , "2-sword(%d dmg) = %d", 10*damage_boost , hero.weapon_count[1]);
         mvwprintw(stats , 13 , 1 , "range: ");
         mvwprintw(stats , 15 , 3 , "3-arrow(%d dmg) = %d", 5*damage_boost , hero.weapon_count[2]);
         mvwprintw(stats , 17 , 3 , "4-dagger(%d dmg) = %d", 12*damage_boost , hero.weapon_count[3]);
@@ -1770,8 +2000,9 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
 
         if(in == 'q'){
             show_msg("weapon put back" , 0);
-            show_msg("pick a weapon" , 1);
-            in = wgetch(stats);
+            hero.current_weapon = -1;
+            show_msg("pick a weapon" , 0);
+            in = wgetch(gamewin);
             switch(in){
                 case 1 :
                 if(hero.weapon_count[0] > 0)
@@ -1895,10 +2126,26 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
         
         if(in == '1' && hero.potion_count[0]>0){
             hero.potion_count[0]--;
-            hero.health += 10;
-            if(hero.health > hero.max_health)hero.health = 40;
+            hero.health += 8;
+            regen_boost = 2;
+            regen_flag = hero.total_exp;
+            if(hero.health > hero.max_health)hero.health = hero.max_health;
             show_stats();
             show_msg("You immidiately feel better" , 0);
+        }
+        if(in == '2' && hero.potion_count[1]>0){
+            hero.potion_count[1]--;
+            speed_flag = hero.total_exp;
+            speed_boost = 2;
+            show_stats();
+            show_msg("Your speed got doubled" , 0);
+        }
+        if(in == '3' && hero.potion_count[2]>0){
+            hero.potion_count[2]--;
+            damage_flag = hero.total_exp;
+            damage_boost = 2;
+            show_stats();
+            show_msg("You feel stronger" , 0);
         }
 
         show_stats();
@@ -1924,6 +2171,29 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
             revealed = 0;
         }
     }
+    else if(keypressed == 'o' || keypressed == 'O'){
+        Mix_HaltMusic();
+    }
+    else if(keypressed == 'p' || keypressed == 'P'){
+        Mix_HaltMusic();
+    switch(level){
+        case 1 :
+        Mix_PlayMusic(l1, -1);
+        break;
+        case 2 : 
+        Mix_PlayMusic(l2, -1);
+        break;
+        case 3 :
+        Mix_PlayMusic(l3, -1);
+        break;
+        case 4 :
+        Mix_PlayMusic(l4, -1);
+        break;
+        case 5 : 
+        Mix_PlayMusic(lt, -1);
+        break;
+    }
+    }
     else{
         return 4;
     }
@@ -1931,6 +2201,11 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
 }
 
 int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
+    int g = 0;
+    if(keypressed == 'g'){
+        g = 1;
+        keypressed = wgetch(gamewin);
+    }
     int j , i ;
     switch(keypressed - 48){
         case 1 : 
@@ -1954,14 +2229,26 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
     }
     struct point current = hero.loc;
 
-    int next_block = mvwinch(win , hero.loc.y + j , hero.loc.x + i);
-    int next= next_block & A_CHARTEXT;
+    chtype next_block = mvwinch(win , hero.loc.y + j , hero.loc.x + i);
+    chtype next= next_block & A_CHARTEXT;
     int w = which(hero.loc.y , hero.loc.x , rooms , room_count);  
     if(w == -1)w = which(hero.loc.y + j , hero.loc.x + i , rooms , room_count);  
     if(w >= 0 && rooms[w].marked == 0){
         rooms[w].marked =1;
         reveal_area(rooms[w].y , rooms[w].x, rooms[w].height , rooms[w].width);
     }  
+    if(g == 1){
+        if(next == '~' || next == '\\' || next == '$' || next == '*'){
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = next_block;
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+        }
+    }
     if(next_block == '+' || next_block == '@' || next_block == '#' || next == '#'){ 
         for(int m = -3 ; m <= 3 ; m++){
             for(int n = -3 ; n <= 3 ; n++){
@@ -1976,299 +2263,343 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
         }
         }
     }
-    if(next == '.' || next == '#' || next == '+' || next == '?' || next_block == '@'){//basic movement not picking items nor heading through traps
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = next_block;
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-    }
-    else if(next_block == '&'){//password generation
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = next_block;
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        wrefresh(win);
-        int password = rand()%9000 + 1000 ;
-        rooms[w].password1 = password;
-        WINDOW* pass = newwin(6 , 8 , 2, col - 10);
-        box(pass , 0 , 0);
-        wrefresh(pass);
-        mvwprintw(pass , 1 , 2 , "code:" );
-        mvwprintw(pass , 2 , 2 ,"%d" , rooms[w].password1);
-        mvwprintw(pass , 4 , 2 , "20s");
-        wrefresh(pass);
-        signal(SIGINT, handle_signal);
-        for (int i = 0; i < 20; i++) {  
-        if (kbhit()) {  
-            char ch = getchar();  
-            if (ch) {    
-                interrupted = 1;  
-                break;  
-            }  
-        }  
-        sleep(1);  
-        mvwprintw(pass , 4 , 2 , "%2ds" , 19 - i);
-        wrefresh(pass);
-        }
-        delete_partly(win , 6 ,8 ,2 , col - 10);
-        delwin(pass);
-    }
-    else if(next == '-' || next == '|'){//hidden doors
-        int c = mvwinch(win , hero.loc.y + 2*j , hero.loc.x + 2*i) & A_CHARTEXT;
-        if(c != ' ' && c != '-' && c!= '|' && (i == 0 || j == 0)){
+    if(g != 1){
+        if((next == '.' || next == '#' || next == '+' || next == '?' || next_block == '@')){//basic movement not picking items nor heading through traps
+            if(w >= 0){
+            for(int t = 0 ; t < rooms[w].trap_count ; t++){
+                if(hero.loc.y + j == rooms[w].traps[t].y && hero.loc.x + i == rooms[w].traps[t].x){
+                    rooms[w].trap_status[t] = 1;
+                    mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+                    update_map(hero.loc.y , hero.loc.x , *pre);
+                    *pre = '^';
+                    hero.loc.y += j ; hero.loc.x += i ;
+                    wattron(gamewin , COLOR_PAIR(hero_color));
+                    mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+                    wattroff(gamewin , COLOR_PAIR(hero_color));
+                    update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+                    hero.health -= 4;
+                    show_stats();
+                }
+            }
+            }
             mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
             update_map(hero.loc.y , hero.loc.x , *pre);
-            *pre = '?';
+            *pre = next_block;
             hero.loc.y += j ; hero.loc.x += i ;
             wattron(gamewin , COLOR_PAIR(hero_color));
             mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
             wattroff(gamewin , COLOR_PAIR(hero_color));
             update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
         }
-    }
-    else if(next_block == '@' + COLOR_PAIR(1)){
-        WINDOW* pass = newwin(7 , 20 , 2, col - 22);
-        box(pass , 0 , 0);
-        mvwprintw(pass , 1 , 1 , "Enter the passcode");
-        wrefresh(pass);
-        echo();
-        int code = 0;
-        for(int t = 0 ; t < 4 ; t++){
-            int n = mvwgetch(pass , 3 , 8+t) - '0';
-            code *= 10;
-            code += n ;
+        else if(next_block == '&'){//password generation
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = next_block;
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            wrefresh(win);
+            int password = rand()%9000 + 1000 ;
+            rooms[w].password1 = password;
+            WINDOW* pass = newwin(6 , 8 , 2, col - 10);
+            box(pass , 0 , 0);
             wrefresh(pass);
-        }
-        noecho();
-        if(code == rooms[w].password1){
-            wattron(win , COLOR_PAIR(2));
-            mvwprintw(pass , 5 , 1 , "access granted");
-            wattroff(win , COLOR_PAIR(2));
+            mvwprintw(pass , 1 , 2 , "code:" );
+            mvwprintw(pass , 2 , 2 ,"%d" , rooms[w].password1);
+            mvwprintw(pass , 4 , 2 , "20s");
             wrefresh(pass);
-            sleep(2);
+            signal(SIGINT, handle_signal);
+            for (int i = 0; i < 20; i++) {  
+            if (kbhit()) {  
+                char ch = getchar();  
+                if (ch) {    
+                    interrupted = 1;  
+                    break;  
+                }  
+            }  
+            sleep(1);  
+            mvwprintw(pass , 4 , 2 , "%2ds" , 19 - i);
+            wrefresh(pass);
+            }
+            delete_partly(win , 6 ,8 ,2 , col - 10);
             delwin(pass);
-            delete_partly(win , 7 , 20 , 2, col - 22);
-            mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
-            update_map(hero.loc.y + j , hero.loc.x + i , '@');
+        }
+        else if(next_block == '-' || next_block == '|'){//hidden doors
+        for(int m = 0 ; m < rooms[w].door_count ; m++){
+            if(rooms[w].door_types[m][0] == 'h' && rooms[w].doors[m].y == hero.loc.y+j && rooms[w].doors[m].x == hero.loc.x+i){
+                mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+                *pre = '?';
+                hero.loc.y += j ; hero.loc.x += i ;
+                mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            }
+        }
+    }
+        else if(next_block == '@' + COLOR_PAIR(1)){
+            WINDOW* pass = newwin(7 , 20 , 2, col - 22);
+            box(pass , 0 , 0);
+            mvwprintw(pass , 1 , 1 , "Enter the passcode");
+            wrefresh(pass);
+            echo();
+            int code = 0;
+            for(int t = 0 ; t < 4 ; t++){
+                int n = mvwgetch(pass , 3 , 8+t) - '0';
+                code *= 10;
+                code += n ;
+                wrefresh(pass);
+            }
+            noecho();
+            if(code == rooms[w].password1){
+                wattron(win , COLOR_PAIR(2));
+                mvwprintw(pass , 5 , 1 , "access granted");
+                wattroff(win , COLOR_PAIR(2));
+                wrefresh(pass);
+                sleep(2);
+                delwin(pass);
+                delete_partly(win , 7 , 20 , 2, col - 22);
+                mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+                update_map(hero.loc.y + j , hero.loc.x + i , '@');
+            }
+            else{
+                wattron(win , COLOR_PAIR(3));
+                mvwprintw(pass , 5 , 1 , "access denied");
+                wattroff(win , COLOR_PAIR(3));
+                wrefresh(pass);
+                sleep(2);
+                delwin(pass);
+                delete_partly(win , 7 , 20 , 2, col - 22);
+                wattron(win , COLOR_PAIR(3));
+                mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+                update_map(hero.loc.y + j , hero.loc.x + i , '@' | COLOR_PAIR(3));
+                wattroff(win , COLOR_PAIR(3));
+            }
+            
+        }
+        else if(next_block == '@' + COLOR_PAIR(3)){
+            WINDOW* pass = newwin(7 , 20 , 2, col - 22);
+            box(pass , 0 , 0);
+            mvwprintw(pass , 1 , 1 , "Enter the passcode");
+            wrefresh(pass);
+            echo();
+            int code = 0;
+            for(int t = 0 ; t < 4 ; t++){
+                int n = mvwgetch(pass , 3 , 8+t) - '0';
+                code *= 10;
+                code += n ;
+                wrefresh(pass);
+            }
+            noecho();
+            if(code == rooms[w].password1){
+                wattron(win , COLOR_PAIR(2));
+                mvwprintw(pass , 5 , 1 , "access granted");
+                wattroff(win , COLOR_PAIR(2));
+                wrefresh(pass);
+                sleep(2);
+                delwin(pass);
+                delete_partly(win , 7 , 20 , 2, col - 22);
+                mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+                update_map(hero.loc.y + j , hero.loc.x + i , '@');
+            }
+            else{
+                wattron(win , COLOR_PAIR(4));
+                mvwprintw(pass , 5 , 1 , "access denied");
+                wattroff(win , COLOR_PAIR(4));
+                wrefresh(pass);
+                sleep(2);
+                delwin(pass);
+                delete_partly(win , 7 , 20 , 2, col - 22);
+                wattron(win , COLOR_PAIR(4));
+                mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+                update_map(hero.loc.y + j , hero.loc.x + i , '@'|COLOR_PAIR(4));
+                wattroff(win , COLOR_PAIR(4));
+            }
+        }
+        else if(next_block == '@' + COLOR_PAIR(4)){
+            WINDOW* pass = newwin(7 , 20 , 2, col - 22);
+            box(pass , 0 , 0);
+            mvwprintw(pass , 1 , 1 , "Enter the passcode");
+            wrefresh(pass);
+            echo();
+            int code = 0;
+            for(int t = 0 ; t < 4 ; t++){
+                int n = mvwgetch(pass , 3 , 8+t) - '0';
+                code *= 10;
+                code += n ;
+                wrefresh(pass);
+            }
+            noecho();
+            if(code == rooms[w].password1){
+                wattron(win , COLOR_PAIR(2));
+                mvwprintw(pass , 5 , 1 , "access granted");
+                wattroff(win , COLOR_PAIR(2));
+                wrefresh(pass);
+                sleep(2);
+                delwin(pass);
+                delete_partly(win , 7 , 20 , 2, col - 22);
+                mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+                update_map(hero.loc.y + j , hero.loc.x + i , '@');
+            }
+            else{
+                wattron(win , COLOR_PAIR(1));
+                mvwprintw(pass , 5 , 1 , "access denied");
+                wattroff(win , COLOR_PAIR(1));
+                wrefresh(pass);
+                sleep(2);
+                delwin(pass);
+                delete_partly(win , 7 , 20 , 2, col - 22);
+                wattron(win , COLOR_PAIR(5));
+                mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
+                update_map(hero.loc.y + j , hero.loc.x + i , '@'|COLOR_PAIR(5));
+                wattroff(win , COLOR_PAIR(5));
+            }
+        }
+        else if(next_block == '$' + COLOR_PAIR(6)){
+            hero.gold_count++;
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            for(int t = 0 ; t < rooms[w].gold_count ; t++){
+                if(rooms[w].gold[t].y == hero.loc.y && rooms[w].gold[t].x == hero.loc.x){
+                    rooms[w].gold[t].y = -1;
+                    rooms[w].gold[t].x = -1;
+                }
+            }
+            show_stats();
+        }
+        else if(next_block == '$' + COLOR_PAIR(8)){
+            hero.bgold_count++;
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            for(int t = 0 ; t < rooms[w].black_gold_count ; t++){
+                if(rooms[w].black_gold[t].y == hero.loc.y && rooms[w].black_gold[t].x == hero.loc.x){
+                    rooms[w].black_gold[t].y = -1;
+                    rooms[w].black_gold[t].x = -1;
+                }
+            }
+            show_stats();
+        }
+        else if(next_block == '*' + COLOR_PAIR(7)){
+            int b = rand()%6;
+            if(b>2)b=0;
+            else b++;
+            hero.food_count[b]++;
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            for(int t = 0 ; t < rooms[w].foods_count ; t++){
+                if(rooms[w].foods[t].y == hero.loc.y && rooms[w].foods[t].x == hero.loc.x){
+                    rooms[w].foods[t].y = -1;
+                    rooms[w].foods[t].x = -1;
+                }
+            }
+            show_stats();
+        }
+        else if(next_block == '\\' + COLOR_PAIR(1) + A_BOLD){
+            int b = rand()%9;
+            if(b <= 1 ){
+                if(hero.weapon_count[1] == 0)
+                hero.weapon_count[1]++;
+                else{
+                    show_msg("You wouldn't need another sword" , 0);
+                }
+                }
+            else if(b == 2)hero.weapon_count[3]+=8;
+            else if(b >= 3 && b <= 5)hero.weapon_count[2]+=20;
+            else if(b >= 6)hero.weapon_count[4]+=5;
+            
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            for(int t = 0 ; t < rooms[w].weapon_count ; t++){
+                if(rooms[w].weapons[t].y == hero.loc.y && rooms[w].weapons[t].x == hero.loc.x){
+                    rooms[w].weapons[t].y = -1;
+                    rooms[w].weapons[t].x = -1;
+                }
+            }
+            show_stats();
+        }
+        else if(next_block == '~' + COLOR_PAIR(5) + A_BOLD){
+            int b = rand()%3;
+            hero.potion_count[b]++;
+            
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            for(int t = 0 ; t < rooms[w].potion_count ; t++){
+                if(rooms[w].potions[t].y == hero.loc.y && rooms[w].potions[t].x == hero.loc.x){
+                    rooms[w].potions[t].y = -1;
+                    rooms[w].potions[t].x = -1;
+                }
+            }
+            show_stats();
+        }
+        else if(next_block == '!'){
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            hero.weapon_count[2]++;
+        }
+        else if(next_block == '/'){
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '.';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            hero.weapon_count[3]++;
+        }
+        else if(next_block == '^'){
+            mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
+            update_map(hero.loc.y , hero.loc.x , *pre);
+            *pre = '^';
+            hero.loc.y += j ; hero.loc.x += i ;
+            wattron(gamewin , COLOR_PAIR(hero_color));
+            mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
+            wattroff(gamewin , COLOR_PAIR(hero_color));
+            update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
+            hero.health -= 4;
+            show_stats();
+        }
+        else if(next_block == '<'){
+            return 2;
         }
         else{
-            wattron(win , COLOR_PAIR(3));
-            mvwprintw(pass , 5 , 1 , "access denied");
-            wattroff(win , COLOR_PAIR(3));
-            wrefresh(pass);
-            sleep(2);
-            delwin(pass);
-            delete_partly(win , 7 , 20 , 2, col - 22);
-            wattron(win , COLOR_PAIR(3));
-            mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
-            update_map(hero.loc.y + j , hero.loc.x + i , '@' | COLOR_PAIR(3));
-            wattroff(win , COLOR_PAIR(3));
+            return 4;
         }
-        
-    }
-    else if(next_block == '@' + COLOR_PAIR(3)){
-        WINDOW* pass = newwin(7 , 20 , 2, col - 22);
-        box(pass , 0 , 0);
-        mvwprintw(pass , 1 , 1 , "Enter the passcode");
-        wrefresh(pass);
-        echo();
-        int code = 0;
-        for(int t = 0 ; t < 4 ; t++){
-            int n = mvwgetch(pass , 3 , 8+t) - '0';
-            code *= 10;
-            code += n ;
-            wrefresh(pass);
-        }
-        noecho();
-        if(code == rooms[w].password1){
-            wattron(win , COLOR_PAIR(2));
-            mvwprintw(pass , 5 , 1 , "access granted");
-            wattroff(win , COLOR_PAIR(2));
-            wrefresh(pass);
-            sleep(2);
-            delwin(pass);
-            delete_partly(win , 7 , 20 , 2, col - 22);
-            mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
-            update_map(hero.loc.y + j , hero.loc.x + i , '@');
-        }
-        else{
-            wattron(win , COLOR_PAIR(4));
-            mvwprintw(pass , 5 , 1 , "access denied");
-            wattroff(win , COLOR_PAIR(4));
-            wrefresh(pass);
-            sleep(2);
-            delwin(pass);
-            delete_partly(win , 7 , 20 , 2, col - 22);
-            wattron(win , COLOR_PAIR(4));
-            mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
-            update_map(hero.loc.y + j , hero.loc.x + i , '@'|COLOR_PAIR(4));
-            wattroff(win , COLOR_PAIR(4));
-        }
-    }
-    else if(next_block == '@' + COLOR_PAIR(4)){
-        WINDOW* pass = newwin(7 , 20 , 2, col - 22);
-        box(pass , 0 , 0);
-        mvwprintw(pass , 1 , 1 , "Enter the passcode");
-        wrefresh(pass);
-        echo();
-        int code = 0;
-        for(int t = 0 ; t < 4 ; t++){
-            int n = mvwgetch(pass , 3 , 8+t) - '0';
-            code *= 10;
-            code += n ;
-            wrefresh(pass);
-        }
-        noecho();
-        if(code == rooms[w].password1){
-            wattron(win , COLOR_PAIR(2));
-            mvwprintw(pass , 5 , 1 , "access granted");
-            wattroff(win , COLOR_PAIR(2));
-            wrefresh(pass);
-            sleep(2);
-            delwin(pass);
-            delete_partly(win , 7 , 20 , 2, col - 22);
-            mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
-            update_map(hero.loc.y + j , hero.loc.x + i , '@');
-        }
-        else{
-            wattron(win , COLOR_PAIR(1));
-            mvwprintw(pass , 5 , 1 , "access denied");
-            wattroff(win , COLOR_PAIR(1));
-            wrefresh(pass);
-            sleep(2);
-            delwin(pass);
-            delete_partly(win , 7 , 20 , 2, col - 22);
-            wattron(win , COLOR_PAIR(5));
-            mvwaddch(win , hero.loc.y + j , hero.loc.x + i , '@');
-            update_map(hero.loc.y + j , hero.loc.x + i , '@'|COLOR_PAIR(5));
-            wattroff(win , COLOR_PAIR(5));
-        }
-    }
-    else if(next_block == '$' + COLOR_PAIR(6)){
-        hero.gold_count++;
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = '.';
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        for(int t = 0 ; t < rooms[w].gold_count ; t++){
-            if(rooms[w].gold[t].y == hero.loc.y && rooms[w].gold[t].x == hero.loc.x){
-                rooms[w].gold[t].y = -1;
-                rooms[w].gold[t].x = -1;
-            }
-        }
-        show_stats();
-    }
-    else if(next_block == '$' + COLOR_PAIR(8)){
-        hero.bgold_count++;
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = '.';
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        for(int t = 0 ; t < rooms[w].black_gold_count ; t++){
-            if(rooms[w].black_gold[t].y == hero.loc.y && rooms[w].black_gold[t].x == hero.loc.x){
-                rooms[w].black_gold[t].y = -1;
-                rooms[w].black_gold[t].x = -1;
-            }
-        }
-        show_stats();
-    }
-    else if(next_block == '*' + COLOR_PAIR(7)){
-        int b = rand()%6;
-        if(b>2)b=0;
-        else b++;
-        hero.food_count[b]++;
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = '.';
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        for(int t = 0 ; t < rooms[w].foods_count ; t++){
-            if(rooms[w].foods[t].y == hero.loc.y && rooms[w].foods[t].x == hero.loc.x){
-                rooms[w].foods[t].y = -1;
-                rooms[w].foods[t].x = -1;
-            }
-        }
-        show_stats();
-    }
-    else if(next_block == '\\' + COLOR_PAIR(1) + A_BOLD){
-        int b = rand()%9;
-        if(b <= 1 && hero.weapon_count[1] == 0){hero.weapon_count[1]++;}
-        else if(b == 2)hero.weapon_count[3]+=8;
-        else if(b >= 3 && b <= 5)hero.weapon_count[2]+=20;
-        else if(b >= 6)hero.weapon_count[4]+=5;
-        
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = '.';
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        for(int t = 0 ; t < rooms[w].weapon_count ; t++){
-            if(rooms[w].weapons[t].y == hero.loc.y && rooms[w].weapons[t].x == hero.loc.x){
-                rooms[w].weapons[t].y = -1;
-                rooms[w].weapons[t].x = -1;
-            }
-        }
-        show_stats();
-    }
-    else if(next_block == '~' + COLOR_PAIR(5) + A_BOLD){
-        int b = rand()%3;
-        hero.potion_count[b]++;
-        
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = '.';
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        for(int t = 0 ; t < rooms[w].potion_count ; t++){
-            if(rooms[w].potions[t].y == hero.loc.y && rooms[w].potions[t].x == hero.loc.x){
-                rooms[w].potions[t].y = -1;
-                rooms[w].potions[t].x = -1;
-            }
-        }
-        show_stats();
-    }
-    else if(next_block == '^'){
-        mvwaddch(win , hero.loc.y , hero.loc.x , *pre);
-        update_map(hero.loc.y , hero.loc.x , *pre);
-        *pre = '^';
-        hero.loc.y += j ; hero.loc.x += i ;
-        wattron(gamewin , COLOR_PAIR(hero_color));
-        mvwaddch(win , hero.loc.y , hero.loc.x , 'H');
-        wattroff(gamewin , COLOR_PAIR(hero_color));
-        update_map(hero.loc.y , hero.loc.x , 'H' | COLOR_PAIR(hero_color));
-        hero.health -= 4;
-        show_stats();
-    }
-    else if(next_block == '<'){
-        return 2;
-    }
-    else{
-        return 4;
     }
     wrefresh(win);
     wrefresh(stats);
@@ -2285,24 +2616,94 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
         hero.health -= 2;
         show_stats();
     }
+    if(hero.total_exp <= regen_flag + 20){
+        regen_boost = 2;
+    }
+    else{
+        regen_boost = 1;
+    }
+    if(hero.total_exp <= damage_flag + 20){
+        damage_boost = 2;
+    }
+    else{
+        damage_boost = 1;
+    }
+    if(hero.total_exp <= speed_flag + 20){
+        speed_boost = 2;
+    }
+    else{
+        speed_boost = 1;
+    }
     if(hero.hunger == 20 && hero.health < hero.max_health){
-        hero.health += 1;
+        hero.health += 1*regen_boost;
         show_stats();
     }
-    if(hero.health <= 0)return 3 ; //deceased
-    if(movflag){
-        manage_monsters(&rooms[w]);
-        return 1;
+    if(movflag && rooms[w].enchanted == 1){
+        hero.health--;
+        show_stats();
     }
-    else
-    return -1;
+    
+    if(movflag && (hero.total_exp%speed_boost == speed_flag%speed_boost)){
+        manage_monsters(&rooms[w]);
+    }
+    
+    if(hero.health <= 0)return 3 ; //deceased
+    return 1;
+}
+
+void treasure_room(room*t){
+    
+    t->black_gold_count = 6 ;
+    t->gold_count = 10 ;
+    t->trap_count = 12 ;
+    t->height = 20;
+    t->width = 30;
+    t->y = row/2 -10;
+    t->x = col/2 -15;
+    room_count = 1;
+    t->traps = malloc(20 * sizeof(struct point));
+    t->black_gold = malloc(20 * sizeof(struct point));
+    t->gold = malloc(20 * sizeof(struct point));
+    t->monsters = malloc(20 * sizeof(struct monster));
+    t->monster_count = 0;
+    make_room(*t, gamewin);
+    color_the_room(*t , COLOR_PAIR(6));
+    place_hero(gamewin , *t , -1 , -1);
+    for(int i = 0 ; i < t->gold_count ; i++){
+        t->gold[i] = pick_a_random_point(*t);
+        t->filled[t->gold[i].y - t->y][t->gold[i].x - t->x] == 1;
+        wattron(gamewin , COLOR_PAIR(6));
+        mvwaddch(gamewin , t->gold[i].y , t->gold[i].x , '$');
+        wattroff(gamewin , COLOR_PAIR(6));
+    }
+    for(int i = 0 ; i < t->black_gold_count ; i++){
+        t->black_gold[i] = pick_a_random_point(*t);
+        t->filled[t->black_gold[i].y - t->y][t->black_gold[i].x - t->x] == 1;
+        wattron(gamewin , COLOR_PAIR(8));
+        mvwaddch(gamewin , t->black_gold[i].y , t->black_gold[i].x , '$');
+        wattroff(gamewin , COLOR_PAIR(8));
+    }
+    for(int i = 0 ; i < t->trap_count ; i++){
+        t->traps[i] = pick_a_random_point(*t);
+        t->trap_status[i] = 0;
+        t->filled[t->traps[i].y - t->y][t->traps[i].x - t->x] == 1;
+        mvwaddch(gamewin , t->traps[i].y , t->traps[i].x , '.');
+    }
+    place_stair(0 , t , gamewin);
+    wrefresh(gamewin);
+    for(int i = 0 ; i < 4 ; i++)place_undead(t , room_count);
+    for(int i = 0 ; i < 4 ; i++)place_snake(t, room_count);
+    for(int i = 0 ; i < 4 ; i++)place_giant(t, room_count);
+    
+    wrefresh(gamewin);
+    return ;
 }
 
 int input_manager(int in , room* rooms , WINDOW* win , int* pre){
     if(in == 27){
         return 0;
     }
-    if(in >= '1' && in <= '9' && in != '5'){
+    if(in == 'g' || (in >= '1' && in <= '9' && in != '5')){
         int c = mov(win , in , pre , rooms);
         return c;
     }
@@ -2316,28 +2717,30 @@ int input_manager(int in , room* rooms , WINDOW* win , int* pre){
 
 void show_stats(){
     wattron(stats , COLOR_PAIR(9));
-    mvwprintw(stats , 1 , 1 , "SCORE: %d" , hero.gold_count * 50 + hero.bgold_count * 200);
+    mvwprintw(stats , 1 , 1 , "SCORE: %d(%d gold)" , hero.gold_count * 50 + hero.bgold_count * 200 + hero.score , hero.gold_count + hero.bgold_count * 4);
     wattroff(stats , COLOR_PAIR(9));
-    hero.score = hero.gold_count * 50 + hero.bgold_count * 200;
+    
     wattron(stats , COLOR_PAIR(11));
     mvwprintw(stats , 3 , 1 , "HP: %2d/%2d" , hero.health , hero.max_health);
     wattroff(stats , COLOR_PAIR(11));
     mvwprintw(stats , 5 , 1 , "HUNGER: %2d/%2d" , hero.hunger , hero.max_hunger);
+    mvwprintw(stats , 27 , 1 , "LEVEL: %d",level);
     wrefresh(gamewin);
     wrefresh(stats);
 }
 
-void save_stats(){
+void save_stats(int save){
     char filename[100];
     sprintf(filename , "./users/%s.txt" , user);
     FILE* userfile = fopen(filename , "r");
     FILE* temp = fopen("./users/temp.txt" , "a");
     char line[2000];
+    if(!save){
     fgets(line , 2000 , userfile);
     fputs(line , temp);
     fgets(line , 2000 , userfile);
     int t = atoi(line);
-    fprintf(temp , "%d\n" , t + hero.score);
+    fprintf(temp , "%d\n" , t + hero.bgold_count*200 + hero.gold_count*50 +hero.score);
     fgets(line , 2000 , userfile);
     t = atoi(line);
     fprintf(temp , "%d\n" , t + hero.gold_count + hero.bgold_count*4);
@@ -2347,6 +2750,36 @@ void save_stats(){
     fgets(line , 2000 , userfile);
     t = atoi(line);
     fprintf(temp , "%d\n" , t + hero.total_exp);
+    }
+    
+    if(save){
+        for(int i = 0 ; i < 5 ; i++){
+            fgets(line , 2000 , userfile);
+            fputs(line ,temp);
+        }
+        fprintf(temp , "1\n");
+        fprintf(temp , "%d\n" , hero.loc.y);
+        fprintf(temp , "%d\n" , hero.loc.x);
+        fprintf(temp , "%d\n" , level);
+        fprintf(temp , "%d\n" , hero.bgold_count*200 + hero.gold_count*50 +hero.score);
+        fprintf(temp , "%d\n" , hero.gold_count + hero.bgold_count*4);
+        for(int i = 0 ; i < 5 ; i++){
+            fprintf(temp , "%d\n" , hero.weapon_count[i]);
+        }
+        for(int i = 0 ; i < 4 ; i++){
+            fprintf(temp , "%d\n" , hero.food_count[i]);
+        }
+        for(int i = 0 ; i < 3 ; i++){
+            fprintf(temp , "%d\n" , hero.potion_count[i]);
+        }
+        for(int i = 0 ; i < 18 ; i++){
+            fgets(line , 2000 , userfile);
+        }
+    }
+    else{
+        fprintf(temp , "0\n");
+    }
+
     while(fgets(line , 2000 , userfile)){
         fputs(line ,temp);
     }
@@ -2354,10 +2787,64 @@ void save_stats(){
     rename("./users/temp.txt" , filename);
 }
 
+int load_game(){
+    if(logged_in == 0){
+        has_saved = 0;
+        WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
+        box(win , 0 , 0);
+        mvwprintw(win , 4 , 2 , "No saved games found");
+        wrefresh(win);
+        sleep(4);
+        return Main_menu();
+    }
+    char filename[100];
+    sprintf(filename , "./users/%s.txt" , user);
+    FILE* userfile = fopen(filename , "r");
+    char line[2000];
+    for(int i = 0 ; i < 5 ; i++){
+        fgets(line , 2000 , userfile);
+    }
+    fgets(line, 2000 , userfile);
+    int has_saved = atoi(line);
+    if(has_saved == 0){ 
+        WINDOW* win = newwin(9 , 30 , row/2-4 ,col/2-15 );
+        box(win , 0 , 0);
+        mvwprintw(win , 4 , 2 , "No saved games found");
+        wrefresh(win);
+        sleep(4);
+        return Main_menu();
+    }
+    fgets(line, 2000 , userfile);
+    hero.loc.y = atoi(line);
+    fgets(line, 2000 , userfile);
+    hero.loc.x = atoi(line);
+    fgets(line, 2000 , userfile);
+    level = atoi(line);
+    fgets(line, 2000 , userfile);
+    hero.score = atoi(line);
+    fgets(line, 2000 , userfile);
+    hero.gold_count = atoi(line);
+    hero.score -= 50 * hero.gold_count;
+    for(int i = 0 ; i < 5 ; i++){
+        hero.weapon_count[i] = atoi(line);
+    }
+    for(int i = 0 ; i < 4 ; i++){
+        hero.food_count[i] = atoi(line);
+    }
+    for(int i = 0 ; i < 3 ; i++){
+        hero.potion_count[i] = atoi(line);
+    }
+    int n;
+    
+    return 1;
+}
+
 
 //main
 int main(){
     srand(time(NULL)); 
+    SDL_Init(SDL_INIT_AUDIO);
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
     initscr();
     cbreak() ;
     getmaxyx(stdscr , row , col);
@@ -2385,22 +2872,32 @@ int main(){
     init_pair(5 , COLOR_BLUE , COLOR_BLACK);
     init_pair(13 , COLOR_BLACK , COLOR_BLACK);
     init_pair(14 , COLOR_WHITE , COLOR_BLACK);
-
+    m1 = Mix_LoadMUS("./music/menu1.mp3");
+    m2 = Mix_LoadMUS("./music/menu2.mp3");
+    m3 = Mix_LoadMUS("./music/menu3.mp3");
+    l1 = Mix_LoadMUS("./music/level1.mp3");
+    l2 = Mix_LoadMUS("./music/level2.mp3");
+    l3 = Mix_LoadMUS("./music/level3.mp3");
+    l4 = Mix_LoadMUS("./music/level4.mp3");
+    lt = Mix_LoadMUS("./music/treasure.mp3");
+    initialize_hero();
     welcome_page(row , col);
-    int logged_in = check_user(row , col);
+    logged_in = check_user(row , col);
     clear();
     show_login_message(logged_in , row , col);
 
-    if(Main_menu() == 1){
-        return 0 ;
-    }
+    Mix_PlayMusic(m1, -1);
+    prev = m1;
+
+    Main_menu();
+    Mix_HaltMusic();
     
     gamewin = newwin(row - 2 , col - 2 , 1 , 1);
     stats = newwin(row/4*3 - 5, col/5 , row/4, 5);
     msg = newwin(row/8 , col/4 -6 , 4 , 5);
-    wattron(gamewin ,COLOR_PAIR(8));
+    wattron(gamewin ,COLOR_PAIR(11));
     box(gamewin , 0 , 0);
-    wattroff(gamewin ,COLOR_PAIR(8));
+    wattroff(gamewin ,COLOR_PAIR(11));
     wattron(msg ,COLOR_PAIR(7));
     box(msg , 0 , 0);
     wattroff(msg ,COLOR_PAIR(7));
@@ -2408,11 +2905,9 @@ int main(){
     box(stats , 0 , 0);
     wattroff(stats ,COLOR_PAIR(7));
     refresh();
-    wrefresh(gamewin);
-    wrefresh(stats);
-    wrefresh(msg);
+    
     int n=0 ;
-    initialize_hero();
+    
     struct point * stairs = (struct point *)malloc(4 * sizeof(struct point));
     stairs[0].y = -1 ; stairs[0].x = -1;
     room** rooms = (room**)malloc(4 * sizeof(room*));
@@ -2423,23 +2918,24 @@ int main(){
     show_stats();
     
     for(level; level < 5 ; level++){
-    rooms[level-1] = create_random_rooms(gamewin , row , col , n , -((level%2)-1), stairs[level-1]);
-    
+    rooms[level-1] = create_random_rooms(gamewin , row , col , n , -((level%2)-1), hero.loc);
+    Mix_HaltMusic();
     switch(level){
         case 1 :
+        Mix_PlayMusic(l1, -1);
         show_msg("welcome to the dungeon" , 1);
         break;
         case 2 : 
+        Mix_PlayMusic(l2, -1);
         show_msg("here comes the second floor" , 1);
         break;
         case 3 :
+        Mix_PlayMusic(l3, -1);
         show_msg("you enter the third floor" , 1);
         break;
         case 4 :
+        Mix_PlayMusic(l4, -1);
         show_msg("I heard the fourth one is the last" , 1);
-        break;
-        case 5 :
-        show_msg("OK this is the last for sure , good luck" , 1);
         break;
     }
     room_counts[level-1] = room_count;
@@ -2463,7 +2959,7 @@ int main(){
         in = getch();
         int c = input_manager(in , rooms[level-1] , gamewin , &pre);
         if(c == 0){
-            //code block to save the game and exit
+            if(logged_in)save_stats(1);
             endwin();
             return 0;
         }
@@ -2472,7 +2968,7 @@ int main(){
         }
         if(c == 3){
             ha_ha_loser();
-            save_stats();
+            if(logged_in)save_stats(0);
             while(1){
             in = getch();
             if(in == 'q'){
@@ -2486,14 +2982,55 @@ int main(){
         }
     }
     stairs[level] = rooms[level - 1][room_counts[level-1] - 1].stair;
-    delete_partly(gamewin ,row - 4,col*3/4 - 5 ,2, col/4-1);
+    delete_partly(gamewin ,row - 4,col*3/4 - 1 ,2, col/4-1);
     }
+    for(int i = 0 ; i < 1; i++){
+    Mix_HaltMusic();
+    show_msg("OK this is the last for sure" , 1);
+    Mix_PlayMusic(lt, -1);
+    room treasure ;
+    treasure_room(&treasure);
+    keypad(stdscr, TRUE); 
+    nodelay(stdscr, TRUE);
+    noecho();
+    cbreak();
+    wrefresh(gamewin);
+    wrefresh(stats);
+    wrefresh(msg);
+    int in = 0;
+    int pre = '.';
+    while(1){
+        in = getch();
+        int c = input_manager(in , &treasure , gamewin , &pre);
+        if(c == 0){
+            if(logged_in)save_stats(1);
+            endwin();
+            return 0;
+        }
+        if(c == 2){
+            break;
+        }
+        if(c == 3){
+            ha_ha_loser();
+            if(logged_in)save_stats(0);
+            while(1){
+            in = getch();
+            if(in == 'q'){
+                endwin();
+                return 0 ;
+            }
+            }
+        }
+        if(c==1){
+            hero.total_exp++;
+        }
+    }
+    }
+    hero.score += 750*(difficulty + 1);
     you_think_you_win();
-    hero.score += 1000;
-    save_stats();
+    if(logged_in)save_stats(0);
     sleep(10);
     // curs_set(0);
     endwin();
     return 0 ;
-
 }

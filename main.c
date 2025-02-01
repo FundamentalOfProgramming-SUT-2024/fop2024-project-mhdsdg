@@ -751,7 +751,7 @@ struct hero{
 }hero;
 
 void initialize_hero(){
-    hero.max_health = 10000 - difficulty*15;
+    hero.max_health = 99 - difficulty*25;
     hero.health = hero.max_health;
     hero.max_hunger = 20;
     hero.hunger = 20;
@@ -2846,6 +2846,7 @@ int main(){
     SDL_Init(SDL_INIT_AUDIO);
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
     initscr();
+    curs_set(0);
     cbreak() ;
     getmaxyx(stdscr , row , col);
     start_color();
@@ -3030,7 +3031,6 @@ int main(){
     you_think_you_win();
     if(logged_in)save_stats(0);
     sleep(10);
-    // curs_set(0);
     endwin();
     return 0 ;
 }

@@ -1956,7 +1956,10 @@ int we_attack(room* room){
 
 int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
     if(keypressed == 'e' || keypressed == 'E'){
-        for(int i = 0 ; i < 4 ; i++){
+        for(int i = 0 ; i < 3 ; i++){
+            if(i == 0){
+                mvwprintw(stats , 7 + 2*i , 1 , "%d- %s: %d",i+1 , foods[i] , hero.food_count[i] + hero.food_count[3]);
+            }
             mvwprintw(stats , 7 + 2*i , 1 , "%d- %s: %d",i+1 , foods[i] , hero.food_count[i]);
         }
         show_stats();
@@ -1966,10 +1969,33 @@ int manage_other_inputs(WINDOW* win , int keypressed , int * pre , room* rooms){
         noecho();
         in = wgetch(stats);
         
-        if(in == '1' && hero.food_count[0]>0){
+        if(in == '1'){
+
+            if(hero.food_count[0] && hero.food_count[3]){
+                if(rand()%3 == 0){
+                    hero.food_count[3]--;
+                    hero.health--;
+                    show_msg("That tastes awful", 0);
+                }
+                else{
+                    hero.food_count[0]--;
+                    hero.hunger += 5;
+                    hero.health += 5 * regen_boost ;
+                    show_msg("That tastes good" , 0);
+                }
+            }
+            else if(hero.food_count[3] == 0 && hero.food_count[0]>0){
             hero.food_count[0]--;
-            hero.hunger += 4;
-            hero.health += 4 * regen_boost ;
+            hero.hunger += 5;
+            hero.health += 5 * regen_boost ;
+            show_msg("That tastes good" , 0);
+            }
+            else if(hero.food_count[0] == 0 && hero.food_count[3]>0){
+            hero.food_count[3]--;
+            hero.health--;
+            show_msg("That tastes awful", 0);
+            }
+
             if(hero.health > hero.max_health)hero.health = hero.max_health;
             if(hero.hunger > hero.max_hunger)hero.hunger = hero.max_hunger;
         }
@@ -2621,7 +2647,7 @@ int mov(WINDOW* win , int keypressed , int * pre , room* rooms){
     int movflag = 0 ;
     if(hero.loc.y - current.y || hero.loc.x - current.x)movflag = 1;
     
-    if(hero.total_exp > 0 && hero.total_exp%20 == 0 && hero.hunger > 0 && movflag){
+    if(hero.total_exp > 0 && hero.total_exp%30 == 0 && hero.hunger > 0 && movflag){
         hero.hunger--;
         show_stats();
     }

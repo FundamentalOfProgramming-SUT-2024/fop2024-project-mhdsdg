@@ -1353,7 +1353,7 @@ room* create_hallways(WINDOW* win , room* rooms , int room_count ,int dir , stru
     traps_and_pillars(rooms , room_count , win);
     place_stair(room_count-1 , rooms , win );
     
-    if(level == 1 || hero.loc.y == -1)
+    if(hero.loc.y == -1)
     place_hero(win , rooms[0] , -1 , -1);
     else
     place_hero(win , rooms[0] , contain.y , contain.x);
@@ -1662,6 +1662,19 @@ int manage_monsters(room* room){
                     hero.health -= room->monsters[t].damage;
                     char message[50];
                     sprintf(message , "The %s injured you" , room->monsters[t].name);
+                    if(hero.health <= 0){
+                        int in;
+                        ha_ha_loser();
+                        if(logged_in)save_stats(0);
+                        while(1){
+                        in = getch();
+                        if(in == 'q'){
+                        endwin();
+                        return 0 ;
+                        }
+                        }
+
+                    }
                     show_msg(message , 0);
                     show_stats();
                     room->monsters[t].turn = 1;
@@ -2733,7 +2746,7 @@ void save_stats(int save){
     char filename[100];
     sprintf(filename , "./users/%s.txt" , user);
     FILE* userfile = fopen(filename , "r");
-    FILE* temp = fopen("./users/temp.txt" , "a");
+    FILE* temp = fopen("./users/temp.txt" , "w+");
     char line[2000];
     if(!save){
     fgets(line , 2000 , userfile);
@@ -2772,7 +2785,9 @@ void save_stats(int save){
         for(int i = 0 ; i < 3 ; i++){
             fprintf(temp , "%d\n" , hero.potion_count[i]);
         }
-        for(int i = 0 ; i < 18 ; i++){
+        fprintf(temp , "%d\n" , hero.health);
+        fprintf(temp , "%d\n" , hero.hunger);
+        for(int i = 0 ; i < 20 ; i++){
             fgets(line , 2000 , userfile);
         }
     }
@@ -2826,14 +2841,21 @@ int load_game(){
     hero.gold_count = atoi(line);
     hero.score -= 50 * hero.gold_count;
     for(int i = 0 ; i < 5 ; i++){
+        fgets(line, 2000 , userfile);
         hero.weapon_count[i] = atoi(line);
     }
     for(int i = 0 ; i < 4 ; i++){
+        fgets(line, 2000 , userfile);
         hero.food_count[i] = atoi(line);
     }
     for(int i = 0 ; i < 3 ; i++){
+        fgets(line, 2000 , userfile);
         hero.potion_count[i] = atoi(line);
     }
+    fgets(line, 2000 , userfile);
+    hero.health = atoi(line);
+    fgets(line, 2000 , userfile);
+    hero.hunger = atoi(line);
     int n;
     
     return 1;
@@ -3004,7 +3026,6 @@ int main(){
         in = getch();
         int c = input_manager(in , &treasure , gamewin , &pre);
         if(c == 0){
-            if(logged_in)save_stats(1);
             endwin();
             return 0;
         }

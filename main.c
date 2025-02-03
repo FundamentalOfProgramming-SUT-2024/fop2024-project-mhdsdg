@@ -598,7 +598,7 @@ int score_menu()
             wattron(win, COLOR_PAIR(10));
         if (i == 2)
             wattron(win, COLOR_PAIR(12));
-        mvwprintw(win, 4 + 8 * i, 2, "%10s%20d%20d%20d%20d", mamad, users[i].value, users[i].gold_count, users[i].game_count, users[i].exp);
+        mvwprintw(win, 4 + 8 * i, 2, "%d-%10s%20d%20d%20d%20d",i+1 , mamad, users[i].value, users[i].gold_count, users[i].game_count, users[i].exp);
         if (i == 0)
             wattroff(win, COLOR_PAIR(6));
         if (i == 1)
@@ -652,7 +652,7 @@ int score_menu()
     wgetch(win);
     wclear(win);
     box(win, 0, 0);
-    for (int j = 0; j < 9; j++)
+    for (int j = 0; j < 1; j++)
     {
         mvwprintw(win, 2, 2, "%10s%20s%20s%20s%20s", "Name: ", "All-time score: ", "Total gold: ", "Games played: ", "EXP: ");
         int i = 3 + 8 * j;
@@ -664,7 +664,7 @@ int score_menu()
             mamad[size - 4] = '\0';
             if (strcmp(mamad, user) == 0)
                 wattron(win, A_REVERSE);
-            mvwprintw(win, 4 + 3 * (i - 3), 2, "%10s%20d%20d%20d%20d", mamad, users[i].value, users[i].gold_count, users[i].game_count, users[i].exp);
+            mvwprintw(win, 4 + 3 * (i - 3), 2, "%d-%10s%20d%20d%20d%20d",i+1 ,mamad, users[i].value, users[i].gold_count, users[i].game_count, users[i].exp);
             if (strcmp(mamad, user) == 0)
                 wattroff(win, A_REVERSE);
         }
